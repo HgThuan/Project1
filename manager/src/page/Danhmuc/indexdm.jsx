@@ -8,7 +8,7 @@ export default function Indexdm() {
         const [data , setData] = useState([]);
 
         const loadData = async() =>{
-                const response = await axios.get("http://localhost:5000/api/getalldm");
+                const response = await axios.get("http://localhost:5001/api/getalldm");
                 setData(response.data);
         };
 
@@ -22,7 +22,7 @@ export default function Indexdm() {
                 loadData();
             } else {
                 try {
-                    const response = await axios.get(`http://localhost:5000/api/searchdm/${searchTerm}`);
+                    const response = await axios.get(`http://localhost:5001/api/searchdm/${searchTerm}`);
                     setData(response.data);
                 } catch (error) {
                     console.error("Error searching data", error);

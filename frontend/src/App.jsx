@@ -6,10 +6,7 @@ import Home from './pages/index/Home';
 import Cartpage from './pages/cart/Cartpage';
 import Product from './pages/product/Product';
 import Details from './pages/product/Details';
-import Chonsize from './pages/tuvan/Chonsize';
-import About from './pages/about/About';
 import Message from './components/Message/message';
-import Buycoolmate from './components/Message/buyme';
 import ScrollToTop from './until/scroll';
 import Odercart from './pages/cart/Odercart';
 import Register from './pages/login/Register';
@@ -29,9 +26,7 @@ export default function App() {
         <Route path='/product' element={<Product/>}/>
         <Route path='/detail' element={<Details/>}/>
         <Route path='/DangKy' element={<Register/>}/>
-        <Route path='/about' element={<About/>}/>
         <Route path='/DangNhap' element={<Login/>}/>
-        <Route path='/chonsize' element={<Chonsize/>}/>
         <Route path='/detail/:ma_san_pham' element={<Details/>}/>
         <Route path='/donhang' element={<Odercart/>}/>
         </Routes>

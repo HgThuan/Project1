@@ -1,63 +1,40 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../../until/userContext';
+import axios from 'axios'; 
+const API_URL = 'http://localhost:5001/api/auth';
 
 const Login = () => {
-  const userData = [
-    {
-      id: 1,
-      username: 'hoangvanthuan@gmail.com',
-      password: '12345',
-      name: 'Hoàng Văn Thuấn',
-    },
-    {
-      id: 2,
-      username: 'user1@gmail.com',
-      password: '12345',
-      name: 'Nguyễn Văn A',
-    },
-    {
-      id: 3,
-      username: 'user2@gmail.com',
-      password: '12345',
-      name: 'Lê Thị Bình',
-    },
-    {
-      id: 4,
-      username: 'user3@gmail.com',
-      password: '12345',
-      name: 'Trần Thị C',
-    },
-    {
-      id: 5,
-      username: 'user4@gmail.com',
-      password: '12345',
-      name: 'Lò lựu đạn',
-    },
-  ];
-
+  // Xóa mảng userData cứng
   const { updateUser } = useUser();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // Đây thực chất là email
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    if (!username.endsWith('@gmail.com')) {
-      setMessage('Tên đăng nhập phải có dạng @gmail.com');
-      return;
-    }
+  // 3. Cập nhật hàm handleLogin
+const handleLogin = async () => {
+    try {
+      const response = await axios.post(`${API_URL}/login`, {
+        email: username,
+        password: password,
+      });
 
-    const user = userData.find(
-      (user) => user.username === username && user.password === password
-    );
+      // 1. LẤY TOKEN VÀ USER TỪ RESPONSE
+      const { token, user } = response.data;
 
-    if (user) {
-      updateUser({ id: user.id, name: user.name, username: user.username });
+      // 2. LƯU VÀO LOCALSTORAGE (ĐÂY LÀ BƯỚC QUAN TRỌNG NHẤT)
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      updateUser({ id: user.id, name: user.name, username: user.username, is_admin: user.is_admin });
       alert(`Xin chào, ${user.name}!`);
       navigate('/');
-    } else {
-      setMessage('Thông tin tài khoản hoặc mật khẩu không chính xác!');
+
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+      setMessage(errorMessage);
     }
   };
 
@@ -73,7 +50,7 @@ const Login = () => {
         <input
           type="text"
           id="username"
-          placeholder="Email/SĐT của bạn"
+          placeholder="Email của bạn" // Đổi placeholder cho rõ ràng
           className="login__input"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -94,6 +71,7 @@ const Login = () => {
           Đăng nhập
         </div>
 
+        {/* ...Phần còn lại của JSX giữ nguyên... */}
         <div className="login-separate">
           <span></span>
           Hoặc

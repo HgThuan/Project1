@@ -1,4 +1,4 @@
-const BillInput = require('../model/hoadonnhap');
+const BillInput = require('../models/hoadonnhap');
 
 exports.getAllBillIP = (req, res) => {
 

@@ -22,7 +22,7 @@ export default function Createdm() {
       toast.error("Vui lòng nhập đầy đủ thông tin");
 
     } else{
-      axios.post("http://localhost:5000/api/createdm",{
+      axios.post("http://localhost:5001/api/createdm",{
         ten_danh_muc
       }).then(()=>{setState({ten_danh_muc :""})
       

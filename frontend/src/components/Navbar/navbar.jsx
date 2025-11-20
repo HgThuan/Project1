@@ -1,358 +1,341 @@
-import React, { Fragment } from 'react'
+import React, { Fragment, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useUser } from '../../until/userContext';
 import { LoadData } from '../../until/cartactive';
+import { MiniCart } from '../../until/cart';
+import axios from 'axios';
+import './navbar.css'
 
 export default function Navbar() {
     const { user, logoutUser } = useUser();
     const navigate = useNavigate();
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [cartCount, setCartCount] = useState(0);
+
+    // Load danh mục từ API khi component mount
+    useEffect(() => {
+        const loadCategories = async () => {
+            setLoading(true);
+            try {
+                const response = await axios.get("http://localhost:5001/api/getalldm");
+                setCategories(response.data);
+            } catch (err) {
+                console.error("Lỗi tải danh mục:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadCategories();
+    }, []);
+
+    // Load số lượng giỏ hàng
+    useEffect(() => {
+        const updateCartCount = () => {
+            const cart = JSON.parse(localStorage.getItem("cart")) || [];
+            const totalItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            setCartCount(totalItems);
+        };
+
+        updateCartCount();
+        // Lắng nghe sự kiện custom khi giỏ hàng thay đổi
+        window.addEventListener('cartUpdated', updateCartCount);
+        
+        return () => {
+            window.removeEventListener('cartUpdated', updateCartCount);
+        };
+    }, []);
+
     const handleLogout = () => {
         logoutUser();
         navigate('/');
-        var list = JSON.parse(localStorage.getItem("cart")) || [];
-        list = [];
-            localStorage.setItem("cart", JSON.stringify(list));
-            LoadData();
-      };
-  return (
+        const list = [];
+        localStorage.setItem("cart", JSON.stringify(list));
+        LoadData();
+        // Kích hoạt sự kiện cập nhật giỏ hàng
+        window.dispatchEvent(new Event('cartUpdated'));
+    };
 
-      <Fragment>
-      <header className="site-header">
-        
-        <div className="topbar" style={{display: 'block'}}>
-            <a href="">Ưu đãi giảm giá 20% áo polo cho nam  </a>
-            <a href="Allsanpham.html"> " Mua ngay "</a>
+    const toggleSearch = () => {
+        setShowSearch(!showSearch);
+    };
 
-        </div>
-        <div className="header">
-            <div className="header-inner">
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        const searchInput = document.querySelector('.search__input');
+        if (searchInput && searchInput.value.trim()) {
+            navigate(`/product?search=${encodeURIComponent(searchInput.value.trim())}`);
+            setShowSearch(false);
+        }
+    };
 
-                <div className="header__logo">
-                    <Link to="/">
-                        <img src="../Images/logo.svg" alt="logo"/>
-                        Saveman
-                    </Link>
-
-                </div>
-                <div className="header__navbar hide-on-mobile-tablet">
-
-                    <ul className="header__navbar-list">
-                        <li className="header__navbar-product">
-                            <Link to="/product" className="header__navbar-link">
-                                Shop
+    return (
+        <Fragment>
+            <header className="site-header">
+                {/* Topbar */}
+                <div className="topbar">
+                    <div className="topbar__inner">
+                        <div className="topbar__right">
+                            <Link to="/tracking" className="topbar__item">
+                                <i className="fa-solid fa-box"></i> Tra cứu đơn hàng
                             </Link>
-                            
-                            <div className="header__navbar-product-menu-wrap">
-                                <div className="header__navbar-product-menu">
-
-                                    <div className="header__navbar-product-col">
-                                        <a href="" className="header__navbar-product-heading">Bộ sưu tập</a>
-                                        <ul>
-                                            <li>
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Thu Đông</p>
-                                                    <p className="header__navbar-product-item-link-content">Đang giảm giá cực sâu</p>
-                                                </a>
-                                            </li>  
-                                            <li>
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Care & Share</p>
-                                                    <p className="header__navbar-product-item-link-content">10% doanh thu dành cho các bé</p>
-                                                </a>
-                                            </li> 
-                                            <li>
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Lạc Khởi</p>
-                                                    <p className="header__navbar-product-item-link-content">Thiết kế đậm nét văn hóa việt</p>
-                                                </a>
-                                            </li> 
-                                            <li>
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Basics<span className="hot-tag">HOT</span></p>
-                                                    <p className="header__navbar-product-item-link-content">BTS giá rẻ - chất lượng</p>
-                                                </a>
-                                            </li>   
-                                        </ul>
-                                    </div>
-                                    
-                                    <div className="header__navbar-product-col">
-                                        <a href="" className="header__navbar-product-heading">Danh mục</a>
-                                        <ul>
-                                            <li className="header__navbar-product-item ">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Tất cả</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Áo khoác</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Áo dài tay</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Áo polo</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Áo T-shirt</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Áo sơ mi</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Áo thể thao</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item ">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Áo In Hình</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Quần lót nam</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Quần Shorts</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item ">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Quần dài</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Tất</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Phụ kiện</p>
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <div className="header__navbar-product-col">
-                                        <a href="" className="header__navbar-product-heading">Xu hướng</a>
-                                        <ul>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Pre-order <span className="new-tag">NEW</span></p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Giảm nhiều nhất</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Bán chạy nhất<span className="sale-tag">SALE</span></p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Hàng mới về</p>
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <div className="header__navbar-product-col">
-                                        <a href="" className="header__navbar-product-heading">Nhu cầu</a>
-                                        <ul>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Mặc hàng ngày</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Đồ mặc trong</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Đồ mặc trong</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Box đồ nam</p>
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <div className="header__navbar-product-col">
-                                        <a href="" className="header__navbar-product-heading">Công nghệ</a>
-                                        <ul>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Cleandye</p>
-                                                    <p className="header__navbar-product-item-link-content">Nhuộm không dùng nước</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">HeiQ Viroblock</p>
-                                                    <p className="header__navbar-product-item-link-content">Diệt 99,99 % virus</p>
-                                                </a>
-                                            </li>
-                                            <li className="header__navbar-product-item">
-                                                <a href="" className="header__navbar-product-item-link">
-                                                    <p className="header__navbar-product-item-link-name">Excool<span className="hot-tag">HOT</span></p>
-                                                    <p className="header__navbar-product-item-link-content">Công nghệ làm mát tối đa</p>
-                                                </a>
-                                            </li>
-
-                                        </ul>
-                                    </div>
-                                </div>
-
-                            </div>
-
-                        </li>
-
-                        <li className="header__navbar-item navbar-item--about-coolmate">
-                            <Link to="/about" className="header__navbar-link">About me</Link>
-                            <div className="navbar-item--about-coolmate__menu-wrap">
-                                <div className="about-coolmate__menu-inner">
-                                    <a href="index.html">Những gì chúng tôi có</a>
-                                    <div className="row">
-                                        <div className="col p-3">
-                                            <a href="" className="about-coolmate__menu-inner-item">
-                                                <img className="about-coolmate__menu-item-img" src="./Images/aopolo01.png" alt=""/>
-                                                <p className="about-coolmate__menu-item-name">Áo polo</p>
-                                                <p className="about-coolmate__menu-item-content">Mang đến cho bạn sản phẩm áo polo tuyệt vời nhất</p>
-                                            </a>
-                                            
-                                        </div>
-                                        <div className="col p-3">
-                                            <a href="" className="about-coolmate__menu-inner-item">
-                                                <img className="about-coolmate__menu-item-img" src="./Images/aothethao1.png" alt=""/>
-                                                <p className="about-coolmate__menu-item-name">Áo thể thao</p>
-                                                <p className="about-coolmate__menu-item-content">Áo thể thao thoáng mát, thoải mái cho vận động </p>
-                                            </a>
-                                            
-                                        </div>
-                                        <div className="col p-3">
-                                            <a href="" className="about-coolmate__menu-inner-item">
-                                                <img className="about-coolmate__menu-item-img" src="./Images/phukien.png" alt=""/>
-                                                <p className="about-coolmate__menu-item-name">Phụ kiện thời trang </p>
-                                                <p className="about-coolmate__menu-item-content">Chúng tôi mang đến những phụ kiện phù hợp với bạn</p>
-                                            </a>
-                                            
-                                        </div>
-                                        <div className="col p-3">
-                                            <a href="" className="about-coolmate__menu-inner-item">
-                                                <img className="about-coolmate__menu-item-img" src="./Images/congnghe.png" alt=""/>
-                                                <p className="about-coolmate__menu-item-name">Câu chuyện</p>
-                                                <p className="about-coolmate__menu-item-content">Đem đến cho bạn những thiết kế tuyệt vời nhất</p>
-                                            </a>
-                                            
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </li>
-
-                        <li className="header__navbar-item">
-                            <Link to="chonsize" className="header__navbar-link">Chọn Size</Link>
-                        </li>
-
-                        <li className="header__navbar-item">
-                            <a href="https://www.coolmate.me/84rising?itm_source=navbar" className="header__navbar-link">84 Rising</a>
-                        </li>
-
-                        <li className="header__navbar-item">
-                            <a href="https://www.coolmate.me/lp/coolxprint-mo-hinh-dat-san-xuat-theo-yeu-cau?itm_source=navbar" className="header__navbar-link">CoolXPrint</a>
-                        </li>
-
-                        <li className="header__navbar-item">
-                            <a href="https://www.coolmate.me/blog?itm_source=navbar" className="header__navbar-link">Blog</a>
-                        </li>
-
-                    </ul>
-
-                </div>
-
-                <div className="header__actions">
-                    <div className="header__actions-search">
-                        <a className="header__actions-link">
-                            <i className="fa-solid fa-magnifying-glass fa-xl"></i>
-                        </a>
-                    </div>
-                    <div className="header__actions-account">
-                    <Link to="/DangNhap" className="header__actions-link">
-                        <i className="fa-solid fa-user fa-xl"></i>
-                    </Link>
-                    <div className="dropdown-menu">
-                        {/* Hiển thị thông tin người dùng hoặc "Tên tài khoản" nếu không có người dùng */}
-                        {user ? (
-                            <>
-                                <a href="" className="dropdown-item">
-                                    <i className="fas fa-user"></i> {' '}
-                                    {user.name}
-                                </a>
-                                <Link to="/donhang" className="dropdown-item">
-                                    <i className="fas fa-shopping-bag"></i> Đơn hàng
-                                </Link>
-                                <a href="" className="dropdown-item" onClick={handleLogout}>
-                                    <i className="fas fa-sign-out-alt"></i> Đăng xuất
-                                </a>
-                            </>
-                        ) : (
-                            <>
-                                <Link to="/DangNhap" className="dropdown-item">
-                                    <i className="fas fa-sign-in-alt"></i> Đăng nhập
-                                </Link>
-                            </>
-                        )}
-                    </div>
-                </div>
-                    <div className="header__actions-cart-icon">
-                        <span className="header__actions-cart-notify">0</span>
-                        <Link to="/cart" className="header__actions-link">
-                            <i className="fa-solid fa-bag-shopping fa-xl"></i>
-                        </Link>
-                        <div className="mini-cart-wrap">
-                            <div className="mini-cart">
-                                <div className="mini-cart-head">
-                                    <span><span className="added-product"></span>  sản phẩm</span>
-                                    <a href="Cart-page.html">Xem tất cả</a>
-                                </div>
-                                <ul className="mini-cart__list">
-                                    
-                                </ul>
-                            </div>
+                            <Link to="/store" className="topbar__item">
+                                <i className="fa-solid fa-location-dot"></i> Tìm cửa hàng
+                            </Link>
+                            <Link to="/wishlist" className="topbar__item">
+                                <i className="fa-solid fa-heart"></i> Yêu thích
+                            </Link>
+                            <div className="topbar__cart">
+                <Link to="/cart" className="topbar__item">
+                    <i className="fa-solid fa-bag-shopping"></i> Giỏ hàng
+                    {cartCount > 0 && (
+                        <span className="topbar__cart-badge">{cartCount}</span>
+                    )}
+                </Link>
+            </div>
                         </div>
-                        
-
                     </div>
-
                 </div>
-            </div>
-            <div className="search" style= {{ display: 'none'}}>
-                <div className="search__inner">
-                    <input placeholder="Tìm kiếm sản phẩm..." className="search__input" type="text"/>
-                    <img className="search__img" style= {{width: '20px'}}  src="/Images/icon-search.svg" alt=""/>
-                </div>
-            </div>
-        </div>
 
-    </header>
-      </Fragment>
-  )
+                {/* Main Header */}
+                <div className="header">
+                    <div className="header-inner">
+                        {/* Logo */}
+                        <div className="header__logo">
+                            <Link to="/">
+                                <img src="../Images/logo.svg" alt="logo"/>
+                                Saveman
+                            </Link>
+                        </div>
+
+                        {/* Navigation */}
+                        <div className="header__navbar hide-on-mobile-tablet">
+                            <ul className="header__navbar-list">
+                                {/* Shop Menu với Dropdown */}
+                                <li className="header__navbar-product">
+                                    <Link to="/product" className="header__navbar-link">
+                                        Shop
+                                    </Link>
+                                    
+                                    <div className="header__navbar-product-menu-wrap">
+                                        <div className="header__navbar-product-menu">
+                                            {/* Bộ sưu tập */}
+                                            <div className="header__navbar-product-col">
+                                                <span className="header__navbar-product-heading">Tất cả sản phẩm</span>
+                                                <ul>
+                                                    <li>
+                                                        <Link to="/product?sort=newest" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Mới nhất</p>
+                                                        </Link>
+                                                    </li>  
+                                                    <li>
+                                                        <Link to="/product?sort=best-seller" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Bán chạy nhất</p>
+                                                        </Link>
+                                                    </li> 
+                                                    <li>
+                                                        <Link to="/product?filter=sale" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Đang giảm giá</p>
+                                                            <p className="header__navbar-product-item-link-content">Ưu đãi đặc biệt</p>
+                                                        </Link>
+                                                    </li> 
+                                                    <li>
+                                                        <Link to="/product" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Tất cả sản phẩm</p>
+                                                            <p className="header__navbar-product-item-link-content">Khám phá bộ sưu tập</p>
+                                                        </Link>
+                                                    </li>   
+                                                </ul>
+                                            </div>
+                                            
+                                            {/* Danh mục động từ API */}
+                                            <div className="header__navbar-product-col">
+                                                <span className="header__navbar-product-heading">Danh mục</span>
+                                                <ul>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Tất cả</p>
+                                                        </Link>
+                                                    </li>
+                                                    
+                                                    {/* Loading state */}
+                                                    {loading && (
+                                                        <li className="header__navbar-product-item">
+                                                            <p className="header__navbar-product-item-link-name">Đang tải...</p>
+                                                        </li>
+                                                    )}
+                                                    
+                                                    {/* Render danh mục động */}
+                                                    {categories.map((cat) => (
+                                                        <li key={cat.ma_danh_muc} className="header__navbar-product-item">
+                                                            <Link 
+                                                                to={`/product?category=${cat.ma_danh_muc}`}
+                                                                className="header__navbar-product-item-link"
+                                                            >
+                                                                <p className="header__navbar-product-item-link-name">{cat.ten_danh_muc}</p>
+                                                            </Link>
+                                                        </li>
+                                                    ))}
+                                                    
+                                                    {/* Empty state */}
+                                                    {!loading && categories.length === 0 && (
+                                                        <li className="header__navbar-product-item">
+                                                            <p className="header__navbar-product-item-link-name">Không có danh mục</p>
+                                                        </li>
+                                                    )}
+                                                </ul>
+                                            </div>
+
+                                            {/* Xu hướng */}
+                                            <div className="header__navbar-product-col">
+                                                <span className="header__navbar-product-heading">Xu hướng</span>
+                                                <ul>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?trend=new" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Hàng mới về <span className="new-tag">NEW</span></p>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?sort=discount" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Giảm nhiều nhất</p>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?collection=basics" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Basic Items<span className="hot-tag">HOT</span></p>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?type=premium" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Premium Collection</p>
+                                                        </Link>
+                                                    </li>
+                                                </ul>
+                                            </div>
+
+                                            {/* Theo nhu cầu */}
+                                            <div className="header__navbar-product-col">
+                                                <span className="header__navbar-product-heading">Theo nhu cầu</span>
+                                                <ul>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?gender=Nam" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Thời trang Nam</p>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?gender=Nữ" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Thời trang Nữ</p>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?usage=daily" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Mặc hàng ngày</p>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="header__navbar-product-item">
+                                                        <Link to="/product?usage=sport" className="header__navbar-product-item-link">
+                                                            <p className="header__navbar-product-item-link-name">Đồ thể thao</p>
+                                                        </Link>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+
+                                {/* Menu items chính */}
+                                <li className="header__navbar-item">
+                                    <Link to="/product?gender=Nam" className="header__navbar-link">Nam</Link>
+                                </li>
+
+                                <li className="header__navbar-item">
+                                    <Link to="/product?gender=Nữ" className="header__navbar-link">Nữ</Link>
+                                </li>
+
+                                <li className="header__navbar-item">
+                                    <Link to="/product?filter=sale" className="header__navbar-link">Sale off</Link>
+                                </li>
+
+                                <li className="header__navbar-item">
+                                    <Link to="/size-guide" className="header__navbar-link">Chọn size</Link>
+                                </li>
+
+                                <li className="header__navbar-item">
+                                    <Link to="/blog" className="header__navbar-link">Blog</Link>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* Header Actions */}
+                        <div className="header__actions">
+                            {/* Search */}
+                            <div className="header__actions-search">
+                                <button className="header__actions-link" onClick={toggleSearch}>
+                                    <i className="fa-solid fa-magnifying-glass fa-xl"></i>
+                                </button>
+                            </div>
+
+                            {/* Account */}
+                            <div className="header__actions-account">
+                                <Link to={user ? "/profile" : "/DangNhap"} className="header__actions-link">
+                                    <i className="fa-solid fa-user fa-xl"></i>
+                                </Link>
+                                <div className="dropdown-menu">
+                                    {user ? (
+                                        <>
+                                            <Link to="/profile" className="dropdown-item">
+                                                <i className="fas fa-user"></i> {user.name}
+                                            </Link>
+                                            <Link to="/orders" className="dropdown-item">
+                                                <i className="fas fa-shopping-bag"></i> Đơn hàng
+                                            </Link>
+                                            <Link to="/wishlist" className="dropdown-item">
+                                                <i className="fas fa-heart"></i> Yêu thích
+                                            </Link>
+                                            <button className="dropdown-item" onClick={handleLogout}>
+                                                <i className="fas fa-sign-out-alt"></i> Đăng xuất
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Link to="/DangNhap" className="dropdown-item">
+                                                <i className="fas fa-sign-in-alt"></i> Đăng nhập
+                                            </Link>
+                                            <Link to="/DangKy" className="dropdown-item">
+                                                <i className="fas fa-user-plus"></i> Đăng ký
+                                            </Link>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                           {/* Cart */}
+                        
+                        </div>
+                    </div> 
+
+                    {/* Search Popup */}
+                    <div className="search" style={{ display: showSearch ? 'block' : 'none' }}>
+                        <div className="search__inner">
+                            <form onSubmit={handleSearchSubmit}>
+                                <input 
+                                    placeholder="Tìm kiếm sản phẩm..." 
+                                    className="search__input" 
+                                    type="text"
+                                />
+                                <button type="submit" className="search__button">
+                                    <img 
+                                        className="search__img" 
+                                        src="/Images/icon-search.svg" 
+                                        alt="Search"
+                                    />
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </header>
+        </Fragment>
+    )
 }

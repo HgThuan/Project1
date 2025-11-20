@@ -1,4 +1,4 @@
-const Bill = require('../model/hoadon');
+const Bill = require('../models/hoadon');
 
 exports.getAllBill = (req, res) => {
 

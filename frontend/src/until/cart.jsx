@@ -1,194 +1,180 @@
-import { useEffect } from "react";
+// src/until/cart.jsx
+import { useEffect, useRef } from "react";
 
+/* ========================================
+   1. Helper: Format tiền VND
+   ======================================== */
+const formatVND = (num) => {
+  if (!num) return "0đ";
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "đ";
+};
 
-function AddProduct() {
+/* ========================================
+   2. Core: Cart logic (localStorage)
+   ======================================== */
+const CART_KEY = "cart";
 
-  useEffect(() => {
+const getCart = () => JSON.parse(localStorage.getItem(CART_KEY) || "[]");
 
-    const $ = window.$;
+const saveCart = (list) => {
+  localStorage.setItem(CART_KEY, JSON.stringify(list));
+  window.dispatchEvent(new CustomEvent("cartUpdated"));
+};
 
-    function addToCart(item) {
-      var list;
-      if (localStorage.getItem("cart") == null) {
-          list = [item];
-      } else {
-          list = JSON.parse(localStorage.getItem("cart")) || [];
-          let check = true;
-          for (let x of list) {
-              if (x.id === item.id && x.color === item.color && x.size === item.size) {
-
-                  x.quantity += 1;
-                  check = false;
-                  break;
-              }
-          }
-          if (check) {
-              list.push(item);
-          }
-      }
-      localStorage.setItem("cart", JSON.stringify(list));
-      loadMiniCart();
-      displayNotify(item); // Hàm hiển thị thông báo đã thêm vào giỏ
+export const addToCart = (item) => {
+  const list = getCart();
+  const existing = list.find(
+    (x) => x.id === item.id && x.color === item.color && x.size === item.size
+  );
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    list.push({ ...item, quantity: 1 });
   }
+  saveCart(list);
+};
 
+export const removeFromCart = (id, size, color) => {
+  const list = getCart().filter(
+    (x) => !(x.id === id && x.size === size && x.color === color)
+  );
+  saveCart(list);
+};
 
-    $('.btn-addCart').click(function() {
-      if ($(this).text() == "Thêm vào giỏ hàng") {
-          var name = $(".content__heading").text();
-          var img = $(".product-img__option-item.active img").attr("src");
-          var color = $(".content__color-heading b").text();
-          var size = $(".btn-size.active").text();
-          var price = convertToNumber($(".content__price").text());
+/* ========================================
+   3. MiniCart Component (List + Badge)
+   ======================================== */
+export const MiniCart = () => {
+  const listRef = useRef(null);
+  const badgeRef = useRef(null);
 
-          // Lấy mã sản phẩm (ma_san_pham) từ URL trang chi tiết sản phẩm
-          var ma_san_pham = window.location.pathname.split('/').pop(); // Lấy phần cuối cùng của đường dẫn URL
+  const renderCart = () => {
+    const cart = getCart();
+    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-          var item = {
-              id: ma_san_pham, // Gán mã sản phẩm vào trường id của item
-              name: name,
-              img: img,
-              color: color,
-              size: size,
-              price: price,
-              quantity: 1, // Số lượng mặc định thêm vào giỏ hàng là 1
-              discount: 0
-          };
-
-          addToCart(item); // Thêm thông tin vào local storage
-      }
-  });
-
-
-  $(document).on("click", ".btn--size", function () {
-    const valueBtn = this;
-    const id = $(valueBtn).closest(".product").attr("id");
-    const name = $(`#${id} .product-name`).text();
-    const img = $(`#${id} .product-img-1`).attr("src");
-    const color = $(`#${id} .product-content__option-item-wrap.active span`).attr("data");
-    const size = $(valueBtn).text();
-    const price = convertToNumber($(`#${id} .product-price`).text());
-
-    const item = {
-        id,
-        name,
-        img,
-        color,
-        size,
-        price,
-        quantity:1,
-        discount: 0,
-    };
-    
-    addToCart(item);
-  });
-
-
-    function XoaMiniCart(id, size, color) {
-      let list = JSON.parse(localStorage.getItem("cart")) || [];
-      var index = list.findIndex(
-        (x) => x.id ===id && x.size === size && x.color === color
-      );
-      if (index >= 0) {
-        list.splice(index, 1);
-      }
-      localStorage.setItem("cart", JSON.stringify(list));
-      loadMiniCart();
+    // Cập nhật badge
+    if (badgeRef.current) {
+      badgeRef.current.textContent = totalItems > 0 ? totalItems : "";
     }
 
-    window.XoaMiniCart = XoaMiniCart;
-
-    function loadMiniCart() {
-      let list = JSON.parse(localStorage.getItem("cart")) || [];
-      var str = "";
-      var length = list.length;
-      if (length > 0) {
-        for (let x of list) {
-          str += `<li class="mini-cart__item">
-                <a class="mini-cart__link">
+    // Cập nhật danh sách
+    if (listRef.current) {
+      if (cart.length === 0) {
+        listRef.current.innerHTML = '<li class="mini-cart__empty">Giỏ hàng trống</li>';
+      } else {
+        listRef.current.innerHTML = cart
+          .map(
+            (item) => `
+            <li class="mini-cart__item">
+              <a href="/cart" class="mini-cart__link">
                 <div class="mini-cart__link-img">
-                    <img src="${x.img}" alt="">
+                  <img src="${item.img}" alt="${item.name}" />
                 </div>
                 <div class="mini-cart__link-content">
-                    <p class="mini-cart__link-content-name">${x.name}</p>
-                    <p class="mini-cart__link-content-describe">${x.color}${x.size}</p>
-                    <p class="mini-cart__link-content-price">${convertVND(
-                      x.price
-                    )}</p>
-                    <p class="mini-cart__link-content-quantity">x${
-                      x.quantity
-                    }</p>
-                    <span class="mini-cart__item-cancel" onClick="XoaMiniCart('${
-                      x.id
-                    }','${x.size}','${x.color}')">✕</span>
+                  <p class="mini-cart__link-content-name">${item.name}</p>
+                  <p class="mini-cart__link-content-describe">${item.color} ${item.size}</p>
+                  <p class="mini-cart__link-content-price">${formatVND(item.price)}</p>
+                  <p class="mini-cart__link-content-quantity">x${item.quantity}</p>
+                  <span 
+                    class="mini-cart__item-cancel" 
+                    data-id="${item.id}" 
+                    data-size="${item.size}" 
+                    data-color="${item.color}"
+                  >X</span>
                 </div>
-                </a>
-            </li>`;
-        }
-        document.querySelector(".mini-cart__list").innerHTML = str;
-        document.querySelector(
-          ".header__actions-cart-notify"
-        ).textContent = `${length}`;
-        document.querySelector(".added-product").textContent = `${length}`;
-      } else {
-        document.querySelector(".mini-cart__list").innerHTML =
-          '<p class="cart-empty">Không có sản phẩm</p>';
-        document.querySelector(".header__actions-cart-notify").textContent =
-          "0";
-        document.querySelector(".added-product").textContent = "0";
+              </a>
+            </li>`
+          )
+          .join("");
       }
     }
-    loadMiniCart();
-    
+  };
 
-    function displayNotify(item) {
-      $(".notify-added-img img").attr("src", `${item.img}`); // load link ảnh
-      $(".notify-product__title").text(`${item.name}`);
-      $(".notify-product__color").text(`${item.color}`);
-      $(".notify-product__size").text(`${item.size}`);
-      $(".notify-product__prices").text(`${convertVND(item.price)}`);
-      $(".notify-added").css("transform", "translateX(0px)"); // đưa block thông báo dịch chuyển vào trong màn hình
+  useEffect(() => {
+    renderCart();
+    const handler = () => renderCart();
+    window.addEventListener("cartUpdated", handler);
+    return () => window.removeEventListener("cartUpdated", handler);
+  }, []);
 
-      // block thông báo được thu vào sau 4 giây
-      setTimeout(function () {
-        $(".notify-added").css("transform", "translateX(calc(100% + 20px))");
-      }, 3000);
-    }
+  // Xử lý xóa item
+  useEffect(() => {
+    const ul = listRef.current;
+    if (!ul) return;
 
-    function convertToNumber(price) {
-      let result = "";
-      for (let i = 0; i < price.length; i++) {
-        if (price[i] !== "." && price[i] !== "đ") {
-          result += price[i];
-        }
+    const handleClick = (e) => {
+      const target = e.target;
+      if (target.classList.contains("mini-cart__item-cancel")) {
+        const id = target.dataset.id;
+        const size = target.dataset.size;
+        const color = target.dataset.color;
+        removeFromCart(id, size, color);
       }
-      return parseInt(result, 10);
-    }
-
-    //Hàm chuyển từ số sang chuỗi theo định dạng VND
-    function convertVND(number) {
-      if (number == 0) {
-        return "0đ";
-      }
-      var str = JSON.stringify(number);
-      var result = "";
-      var length = str.length;
-      var count = 0;
-      for (var i = length - 1; i >= 0; --i) {
-        if (count % 3 == 0 && count != 0) {
-          result = str[i] + "." + result;
-        } else {
-          result = str[i] + result;
-        }
-        count++;
-      }
-      return result + "đ";
-    }
-    
-    return () => {
-      $(document).off("click", ".btn--size");
     };
-    
-  },[]);
-}
 
-export default AddProduct;
+    ul.addEventListener("click", handleClick);
+    return () => ul.removeEventListener("click", handleClick);
+  }, []);
+
+  return (
+    <>
+      <ul ref={listRef} className="mini-cart__list" />
+      <span ref={badgeRef} className="header__actions-cart-notify" />
+    </>
+  );
+};
+
+/* ========================================
+   4. AddProduct Hook (gắn sự kiện thêm giỏ)
+   ======================================== */
+export default function AddProduct() {
+  useEffect(() => {
+    // Chi tiết sản phẩm
+    const detailBtn = document.querySelector(".btn-addCart");
+    const handleDetail = () => {
+      if (!detailBtn || detailBtn.textContent !== "Thêm vào giỏ hàng") return;
+
+      const name = document.querySelector(".content__heading")?.textContent?.trim();
+      const img = document.querySelector(".product-img__option-item.active img")?.src;
+      const color = document.querySelector(".content__color-heading b")?.textContent?.trim();
+      const size = document.querySelector(".btn-size.active")?.textContent?.trim();
+      const priceStr = document.querySelector(".content__price")?.textContent?.trim();
+      const price = priceStr ? parseInt(priceStr.replace(/[đ.]/g, ""), 10) : 0;
+      const id = window.location.pathname.split("/").pop();
+
+      if (name && img && color && size && price && id) {
+        addToCart({ id, name, img, color, size, price });
+      }
+    };
+    detailBtn?.addEventListener("click", handleDetail);
+
+    // Danh sách sản phẩm (nút size)
+    const sizeBtns = document.querySelectorAll(".btn--size");
+    const handleSize = (e) => {
+      const btn = e.currentTarget;
+      const product = btn.closest(".product");
+      if (!product) return;
+
+      const id = product.id;
+      const name = product.querySelector(".product-name")?.textContent?.trim();
+      const img = product.querySelector(".product-img-1")?.src;
+      const colorEl = product.querySelector(".product-content__option-item-wrap.active span");
+      const color = colorEl?.getAttribute("data") || "";
+      const size = btn.textContent?.trim();
+      const priceStr = product.querySelector(".product-price")?.textContent?.trim();
+      const price = priceStr ? parseInt(priceStr.replace(/[đ.]/g, ""), 10) : 0;
+
+      if (id && name && img && color && size && price) {
+        addToCart({ id, name, img, color, size, price });
+      }
+    };
+    sizeBtns.forEach((btn) => btn.addEventListener("click", handleSize));
+
+    return () => {
+      detailBtn?.removeEventListener("click", handleDetail);
+      sizeBtns.forEach((btn) => btn.removeEventListener("click", handleSize));
+    };
+  }, []);
+
+  return null;
+}

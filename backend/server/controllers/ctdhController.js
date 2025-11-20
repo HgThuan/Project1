@@ -1,4 +1,4 @@
-const BillCT = require('../model/ctdh');
+const BillCT = require('../models/ctdh');
 
 exports.getBillById = (req, res) => {
     const { ma_don_hang } = req.params;

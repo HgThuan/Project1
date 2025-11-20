@@ -7,11 +7,15 @@ export default function Home() {
     AddProduct();
     const [data,setData] = useState([]);
 
-    const loadData = async() =>{
-        const response = await axios.get("http://localhost:5000/api/top5products");
-        setData(response.data);
-    };
-
+    const loadData = async () => {
+  try {
+    const response = await axios.get("http://localhost:5001/api/top5products");
+    setData(response.data);
+  } catch (err) {
+    console.error('Lỗi tải top5products:', err);
+    setData([]); // Default rỗng nếu lỗi
+  }
+};
     useEffect(()=>{
         loadData();
     },[]);

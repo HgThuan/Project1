@@ -1,21 +1,89 @@
-const Account = require('../../server/model/taikhoan');
+// File: controllers/taikhoanController.js
 
-exports.getAllAccount = (req, res) => {
-    Account.getAll((err, result) => {
-        if (err) {
-            return res.status(500).send(err);
-        }
-        res.send(result);
-    });
+const Taikhoan = require('../models/taikhoan');
+
+/**
+ * @desc    Lấy tất cả tài khoản
+ * @route   GET /api/getallaccount
+ * @access  Private/Admin
+ */
+const getAllAccounts = async (req, res) => {
+    try {
+        const users = await Taikhoan.find({}).select('-password');
+        
+        const formattedUsers = users.map(user => ({
+            id: user._id,
+            email: user.email,
+            ten_nguoi_dung: user.name, // Đổi 'name' thành 'ten_nguoi_dung'
+            is_admin: user.is_admin,
+        }));
+        
+        res.json(formattedUsers);
+
+    } catch (error) {
+        res.status(500).json({ message: `Lỗi máy chủ: ${error.message}` });
+    }
 };
 
-// Hàm mới để tìm kiếm gần đúng theo tên sản phẩm
-exports.searchAccountByName = (req, res) => {
-    const { searchTerm } = req.params; // Lấy search term từ URL params
-    Account.searchByName(searchTerm, (err, result) => {
-        if (err) {
-            return res.status(500).send(err);
+/**
+ * @desc    Tìm kiếm tài khoản
+ * @route   GET /api/searchtk/:searchTerm
+ * @access  Private/Admin
+ */
+const searchAccounts = async (req, res) => {
+    const searchTerm = req.params.searchTerm;
+    try {
+        const users = await Taikhoan.find({
+            $or: [
+                { name: { $regex: searchTerm, $options: 'i' } },
+                { email: { $regex: searchTerm, $options: 'i' } },
+            ],
+        }).select('-password');
+        
+        const formattedUsers = users.map(user => ({
+            id: user._id,
+            email: user.email,
+            ten_nguoi_dung: user.name, 
+            is_admin: user.is_admin,
+        }));
+
+        res.json(formattedUsers);
+    } catch (error) {
+        res.status(500).json({ message: `Lỗi máy chủ: ${error.message}` });
+    }
+};
+
+/**
+ * @desc    Xóa tài khoản
+ * @route   DELETE /api/deletetk/:id
+ * @access  Private/Admin
+ */
+const deleteAccount = async (req, res) => {
+    try {
+        const user = await Taikhoan.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
         }
-        res.send(result);
-    });
+
+        if (user.is_admin === 1) {
+            return res.status(400).json({ message: 'Không thể xóa tài khoản Admin!' });
+        }
+        
+        if (req.user._id.toString() === user._id.toString()) {
+             return res.status(400).json({ message: 'Bạn không thể tự xóa tài khoản của mình' });
+        }
+        
+        await user.deleteOne();
+        res.json({ message: 'Xóa tài khoản thành công' });
+
+    } catch (error) {
+        res.status(500).json({ message: `Lỗi máy chủ: ${error.message}` });
+    }
+};
+
+module.exports = {
+    getAllAccounts,
+    searchAccounts,
+    deleteAccount,
 };

@@ -1,4 +1,4 @@
-const Warehouse = require('../model/khohang');
+const Warehouse = require('../models/khohang');
 
 exports.getAllwarehouse = (req, res) => {
     Warehouse.getAll((err, result) => {

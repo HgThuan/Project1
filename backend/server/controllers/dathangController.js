@@ -1,4 +1,4 @@
-const Order = require('../model/dathang');
+const Order = require('../models/dathang');
 
 exports.addOrder = (req, res) => {
     

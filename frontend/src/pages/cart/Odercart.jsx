@@ -26,7 +26,7 @@ export default function OrderCart() {
     // Load data from API
     const loadData = async () => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/orderDetailsByCustomer/${user.id}`);
+            const response = await axios.get(`http://localhost:5001/api/orderDetailsByCustomer/${user.id}`);
             setOrders(response.data);
             setLoading(false);
         } catch (error) {

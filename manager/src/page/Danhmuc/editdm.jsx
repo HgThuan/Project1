@@ -18,7 +18,7 @@ const {ma_danh_muc} = useParams();
 const  navigate = useNavigate();
 
 useEffect(()=>{
-  axios.get(`http://localhost:5000/api/getdm/${ma_danh_muc}`)
+  axios.get(`http://localhost:5001/api/getdm/${ma_danh_muc}`)
   .then((resp) => setState({...resp.data[0]}));
 },[ma_danh_muc]);
 

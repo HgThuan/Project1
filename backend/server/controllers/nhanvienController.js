@@ -1,4 +1,4 @@
-const Employee = require('../model/nhanvien');
+const Employee = require('../models/nhanvien');
 
 exports.getAllEmployees = (req, res) => {
     Employee.getAll((err, result) => {

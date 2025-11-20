@@ -8,7 +8,7 @@ export default function Viewdm() {
   const {ma_danh_muc} = useParams();
 
   useEffect(()=>{
-    axios.get(`http://localhost:5000/api/getdm/${ma_danh_muc}`)
+    axios.get(`http://localhost:5001/api/getdm/${ma_danh_muc}`)
     .then((resp) => setData({...resp.data[0]}));
   },[ma_danh_muc]);
 

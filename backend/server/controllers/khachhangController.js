@@ -1,4 +1,4 @@
-const Customer = require('../model/khachhang');
+const Customer = require('../models/khachhang');
 
 exports.getAllCustomers = (req, res) => {
     Customer.getAll((err, result) => {

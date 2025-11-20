@@ -1,5 +1,4 @@
 import React, { Fragment } from 'react'
-
 import { StartSlider } from '../../until/slideshow';
 
 export default function Silde() {
