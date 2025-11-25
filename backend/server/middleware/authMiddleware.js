@@ -47,4 +47,51 @@ const admin = (req, res, next) => {
     }
 };
 
-module.exports = { protect, admin };
+// Middleware kiểm tra tài khoản có active không
+const checkActive = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Người dùng chưa xác thực' });
+    }
+
+    if (!req.user.isActive) {
+        return res.status(403).json({
+            success: false,
+            message: 'Tài khoản đã bị khóa',
+            reason: req.user.lockedReason || 'Không có lý do cụ thể'
+        });
+    }
+
+    next();
+};
+
+// Middleware kiểm tra quyền hạn cụ thể (Permission-based)
+const checkPermission = (...requiredPermissions) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Người dùng chưa xác thực' });
+        }
+
+        // Admin has all permissions
+        if (req.user.role === 'admin' || req.user.is_admin === 1) {
+            return next();
+        }
+
+        // Check if user has at least one of the required permissions
+        const hasPermission = requiredPermissions.some(permission =>
+            req.user.permissions && req.user.permissions.includes(permission)
+        );
+
+        if (!hasPermission) {
+            return res.status(403).json({
+                success: false,
+                message: 'Không có quyền truy cập',
+                required: requiredPermissions,
+                userPermissions: req.user.permissions || []
+            });
+        }
+
+        next();
+    };
+};
+
+module.exports = { protect, admin, checkActive, checkPermission };

@@ -1,9 +1,15 @@
-import  { useEffect } from "react";
+import { useEffect } from "react";
 
-const $ = window.$;
+
 
 export function LoadData() {
-  var list = JSON.parse(localStorage.getItem("cart")) || [];
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem("cart") || "[]");
+  } catch (e) {
+    console.warn("Failed to parse cart data, resetting to empty", e);
+    localStorage.setItem("cart", "[]");
+  }
   var str = "";
   var total = 0;
   var tamtinh = 0;
@@ -34,9 +40,8 @@ export function LoadData() {
             <div class="product-new-price">${convertVND(x.price)}</div>
           </div>
         </div>
-        <div class="list-product__close" onclick="Xoa('${x.id}','${
-      x.size
-    }','${x.color}')">
+        <div class="list-product__close" onclick="Xoa('${x.id}','${x.size
+      }','${x.color}')">
           <i class="fa-solid fa-xmark"></i>
         </div>
       </div>
@@ -44,23 +49,44 @@ export function LoadData() {
   }
   if (total < 200) {
     total += 25000;
-    $(".delever-cost").text("25.000đ");
+    const deleverCost = document.querySelector(".delever-cost");
+    if (deleverCost) deleverCost.textContent = "25.000đ";
   } else {
-    $(".delever-cost").text("Miễn phí");
+    const deleverCost = document.querySelector(".delever-cost");
+    if (deleverCost) deleverCost.textContent = "Miễn phí";
   }
-  $(".list-product__inner").html(str);
-  $(".total__price").text(convertVND(total));
-  $(".tamTinh").text(convertVND(tamtinh));
-  $(".btn-pay--price").text(convertVND(total));
-  if (list.length === 0) {
-    $(".btn-pay").css({ opacity: "0.5", "pointer-events": "none" });
+  const listProductInner = document.querySelector(".list-product__inner");
+  if (listProductInner) listProductInner.innerHTML = str;
+
+  const totalPrice = document.querySelector(".total__price");
+  if (totalPrice) totalPrice.textContent = convertVND(total);
+
+  const tamTinh = document.querySelector(".tamTinh");
+  if (tamTinh) tamTinh.textContent = convertVND(tamtinh);
+
+  const btnPayPrice = document.querySelector(".btn-pay--price");
+  if (btnPayPrice) btnPayPrice.textContent = convertVND(total);
+
+  const btnPay = document.querySelector(".btn-pay");
+  if (list.length === 0 && btnPay) {
+    btnPay.style.opacity = "0.5";
+    btnPay.style.pointerEvents = "none";
+  } else if (btnPay) {
+    btnPay.style.opacity = "1";
+    btnPay.style.pointerEvents = "auto";
   }
   loadMiniCart();
 }
 
 export function loadMiniCart() {
   // lấy dữ liệu trên lc trả thành mảng nếu có
-  var list = JSON.parse(localStorage.getItem("cart")) || [];
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem("cart") || "[]");
+  } catch (e) {
+    console.warn("Failed to parse cart data in miniCart, resetting to empty", e);
+    localStorage.setItem("cart", "[]");
+  }
   var str = "";
   var length = list.length;
   // kiểm tra slg
@@ -73,36 +99,40 @@ export function loadMiniCart() {
                             <img src="${x.img}" alt="">
                         </div>
                         <div class="mini-cart__link-content">
-                            <p class="mini-cart__link-content-name">${
-                              x.name
-                            }</p>
-                            <p class="mini-cart__link-content-describe">màu ${
-                              x.color
-                            } ${x.size}</p>
+                            <p class="mini-cart__link-content-name">${x.name
+        }</p>
+                            <p class="mini-cart__link-content-describe">màu ${x.color
+        } ${x.size}</p>
                             <p class="mini-cart__link-content-price">${convertVND(
-                              x.price
-                            )}</p>
-                            <p class="mini-cart__link-content-quantity">x${
-                              x.quantity
-                            }</p>
-                            <span class="mini-cart__item-cancel" onclick="Xoa('${
-                              x.id
-                            }','${x.size}','${x.color}')">✕</span>
+          x.price
+        )}</p>
+                            <p class="mini-cart__link-content-quantity">x${x.quantity
+        }</p>
+                            <span class="mini-cart__item-cancel" onclick="Xoa('${x.id
+        }','${x.size}','${x.color}')">✕</span>
             
                         </div>
                         </a>
                     </li>`;
     }
     // load nội dung lên mini card
-    $(".mini-cart__list").html(str);
-    $(".header__actions-cart-notify").text(`${length}`);
-    $(".added-product").text(`${length}`);
+    const miniCartList = document.querySelector(".mini-cart__list");
+    if (miniCartList) miniCartList.innerHTML = str;
+
+    const cartNotify = document.querySelector(".header__actions-cart-notify");
+    if (cartNotify) cartNotify.textContent = `${length}`;
+
+    const addedProduct = document.querySelector(".added-product");
+    if (addedProduct) addedProduct.textContent = `${length}`;
   } else {
-    $(".mini-cart__list").html(
-      '<p class="cart-empty">Không có sản phẩm</p>'
-    );
-    $(".header__actions-cart-notify").text("0");
-    $(".added-product").text("0");
+    const miniCartList = document.querySelector(".mini-cart__list");
+    if (miniCartList) miniCartList.innerHTML = '<p class="cart-empty">Không có sản phẩm</p>';
+
+    const cartNotify = document.querySelector(".header__actions-cart-notify");
+    if (cartNotify) cartNotify.textContent = "0";
+
+    const addedProduct = document.querySelector(".added-product");
+    if (addedProduct) addedProduct.textContent = "0";
   }
 }
 
@@ -127,32 +157,40 @@ function convertVND(number) {
 }
 
 function ActiveCart() {
-  
+
   useEffect(() => {
 
     var payments = document.querySelectorAll('.payments-item')
     var paymentsInput = document.querySelector('.payments-item input')
-    document.querySelector('.payments-item.active .check').checked = true; 
+    document.querySelector('.payments-item.active .check').checked = true;
 
     payments.forEach((payment, index) => {
-        payment.onclick = () => {
-            document.querySelector('.payments-item.active').classList.remove('active');
-            payment.classList.add('active');
-            document.querySelector('.payments-item.active .check').checked = true;//khi check vào item thì sẽ check vào input
-        }
+      payment.onclick = () => {
+        document.querySelector('.payments-item.active').classList.remove('active');
+        payment.classList.add('active');
+        document.querySelector('.payments-item.active .check').checked = true;//khi check vào item thì sẽ check vào input
+      }
     })
     // lặp qua và gắn onclick
-    $(".payments-item").each(function(index,value) {
-        $(value).click(function(){
-            // Duyệt qua nếu check đk chọn thì gán value
-            $(".check").each(function(){
-                if(this.checked){
-                    $(".type-payment").text(this.value)
-                }
-            })
-        })
-    })
-    var list = JSON.parse(localStorage.getItem("cart")) || [];
+    const paymentItems = document.querySelectorAll(".payments-item");
+    paymentItems.forEach(item => {
+      item.addEventListener("click", () => {
+        const checks = document.querySelectorAll(".check");
+        checks.forEach(check => {
+          if (check.checked) {
+            const typePayment = document.querySelector(".type-payment");
+            if (typePayment) typePayment.textContent = check.value;
+          }
+        });
+      });
+    });
+    let list = [];
+    try {
+      list = JSON.parse(localStorage.getItem("cart") || "[]");
+    } catch (e) {
+      console.warn("Failed to parse cart data in ActiveCart, resetting to empty", e);
+      localStorage.setItem("cart", "[]");
+    }
 
     LoadData();
 

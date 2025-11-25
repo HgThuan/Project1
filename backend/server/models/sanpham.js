@@ -50,8 +50,28 @@ const SanPhamSchema = new mongoose.Schema({
   anhhover2: String,
   thongbao: String,
   sale: String,
+  avg_rating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  total_reviews: {
+    type: Number,
+    default: 0,
+    min: 0
+  }
 }, {
   timestamps: true
 });
+
+// Indexes for search and filter performance
+SanPhamSchema.index({ ten_san_pham: 'text' }); // Text search
+SanPhamSchema.index({ gia: 1 }); // Price sorting/filtering
+SanPhamSchema.index({ gioi_tinh: 1 }); // Gender filter
+SanPhamSchema.index({ ma_danh_muc: 1 }); // Category filter
+SanPhamSchema.index({ giam_gia: 1 }); // Sale filter
+SanPhamSchema.index({ createdAt: -1 }); // Newest sort
+SanPhamSchema.index({ so_luong_mua: -1 }); // Popular sort
 
 module.exports = mongoose.model('SanPham', SanPhamSchema);

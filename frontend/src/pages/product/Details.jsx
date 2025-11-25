@@ -1,444 +1,362 @@
-import React, { Fragment, useEffect, useState } from 'react'
-import Payment from '../../until/detail';
-import AddProduct from '../../until/cart';
-import { useParams } from 'react-router-dom';
+import React, { Fragment, useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import { useUser } from '../../until/userContext';
+import { addToCart } from '../../until/cart';
+import ReviewForm from '../../components/ReviewForm';
+import ReviewList from '../../components/ReviewList';
+import StarRating from '../../components/StarRating';
+
 export default function Details() {
-    Payment();
-    AddProduct();
 
-    const [sanpham ,setData] = useState({});
+    const { user } = useUser();
+    const { ma_san_pham } = useParams();
 
-    const{ma_san_pham} = useParams();
+    const [sanpham, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [selectedColor, setSelectedColor] = useState('');
+    const [selectedSize, setSelectedSize] = useState('');
+    const [selectedImage, setSelectedImage] = useState('');
+    const [quantity, setQuantity] = useState(1);
 
-    useEffect(()=>{
-        axios.get(`http://localhost:5000/api/getsp/${ma_san_pham}`)
-        .then((resp) => setData({...resp.data[0]}));
-    },[ma_san_pham]);
+    useEffect(() => {
+        const fetchProduct = async () => {
+            setLoading(true);
+            setError('');
+
+            try {
+
+                const response = await axios.get(`http://localhost:5001/api/getsp/${ma_san_pham}`);
+
+                if (response.data.success && response.data.product) {
+                    const product = response.data.product;
+                    setData(product);
+
+                    // Set default selections
+                    if (product.mau_sac && product.mau_sac.length > 0) {
+                        setSelectedColor(product.mau_sac[0]);
+                    }
+                    if (product.size && product.size.length > 0) {
+                        setSelectedSize(product.size[0]);
+                    }
+                    setSelectedImage(product.anh_sanpham);
+                } else {
+                    setError('Không tìm thấy sản phẩm');
+                }
+            } catch (err) {
+                console.error('Error fetching product:', err);
+                setError('Không thể tải thông tin sản phẩm. Vui lòng thử lại sau.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProduct();
+    }, [ma_san_pham]);
 
     const formatCurrency = (number) => {
+        if (!number) return '0đ';
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(number);
-    };  
+    };
 
-  return (
-    <Fragment>
-        <main>
-            <div class="container1">
-            <div class="container-product-single">
-                    <div class="imgs">
-                        <div class="link-page">
-                            <a href="./index.html" class="link-page__homepage">Trang chủ</a>
-                            <span>/</span>
-                            <a href="./product-detail.html" class="link-page__currentPage">Áo thun Compact</a>
-                        </div>
-                        <div class="index-img">
-                            <div class="index-img__item active"></div>
-                            <div class="index-img__item"></div>
-                            <div class="index-img__item"></div>
-                        </div>
-                        <div class="product-single-img">
-                            <img class="product-img__main" src={sanpham.anh_sanpham} alt=""/>
-                            <div class="product-img__option">
-                                <div  class="product-img__option-item active">
-                                    <img src={sanpham.anh_sanpham} alt=""/>
-                                </div>
-                                <div  class="product-img__option-item active">
-                                    <img src={sanpham.anhhover1} alt=""/>
-                                </div>
-                                <div class="product-img__option-item">
-                                    <img src={sanpham.anhhover2} alt=""/>
-    
-                                </div>                                                   
+    const calculateDiscountedPrice = () => {
+        if (!sanpham) return 0;
+        const discount = sanpham.giam_gia || 0;
+        return sanpham.gia - (sanpham.gia * discount / 100);
+    };
+
+    const handleReviewSubmitSuccess = () => {
+        // Reload reviews or show success message
+        window.scrollTo({ top: document.querySelector('.review-section')?.offsetTop || 0, behavior: 'smooth' });
+    };
+
+    const handleQuantityChange = (amount) => {
+        setQuantity(prev => {
+            const newQuantity = prev + amount;
+            return newQuantity < 1 ? 1 : newQuantity;
+        });
+    };
+
+    const handleAddToCart = async () => {
+        if (!selectedColor || !selectedSize) {
+            alert('Vui lòng chọn màu sắc và kích thước');
+            return;
+        }
+
+        const item = {
+            id: sanpham._id || sanpham.ma_san_pham, // Ensure ID is correct
+            name: sanpham.ten_san_pham,
+            img: selectedImage,
+            color: selectedColor,
+            size: selectedSize,
+            price: discountedPrice || sanpham.gia,
+            quantity: quantity
+        };
+
+        const result = await addToCart(item, user);
+        if (result.success) {
+            alert(result.message); // Or use a toast if available
+        } else {
+            alert(result.message);
+        }
+    };
+
+    if (loading) {
+        return (
+            <main style={{ padding: '60px 20px', textAlign: 'center' }}>
+                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '48px', color: '#2d4b73' }}></i>
+                <p style={{ marginTop: '20px', color: '#666' }}>Đang tải sản phẩm...</p>
+            </main>
+        );
+    }
+
+    if (error || !sanpham) {
+        return (
+            <main style={{ padding: '60px 20px', textAlign: 'center' }}>
+                <i className="fa-solid fa-exclamation-triangle" style={{ fontSize: '48px', color: '#ff6b6b' }}></i>
+                <p style={{ marginTop: '20px', color: '#666', fontSize: '18px' }}>{error || 'Sản phẩm không tồn tại'}</p>
+                <Link to="/product" style={{
+                    display: 'inline-block',
+                    marginTop: '20px',
+                    padding: '12px 24px',
+                    backgroundColor: '#2d4b73',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '4px'
+                }}>
+                    Quay lại trang sản phẩm
+                </Link>
+            </main>
+        );
+    }
+
+    const discountedPrice = calculateDiscountedPrice();
+    const productImages = [sanpham.anh_sanpham, sanpham.anhhover1, sanpham.anhhover2].filter(Boolean);
+
+    return (
+        <Fragment>
+            <main>
+                <div className="container1">
+                    <div className="container-product-single">
+                        {/* Product Images */}
+                        <div className="imgs">
+                            <div className="link-page">
+                                <Link to="/" className="link-page__homepage">Trang chủ</Link>
+                                <span>/</span>
+                                <Link to="/product" className="link-page__currentPage">Sản phẩm</Link>
+                                <span>/</span>
+                                <span className="link-page__currentPage">{sanpham.ten_san_pham}</span>
                             </div>
-                        </div>
-                    </div>
-                    <div class="content">
-                        <h1 class="content__heading">{sanpham.ten_san_pham}</h1>
-                        <div class="review-rating">
-                            <p class="review-label">
-                                Đã bán(web): 15
-                            </p>  
-                                              
-                        </div>
-                        <div class="review-rating">
-                            <p class="review-label">
-                                Số lượng còn: <span class="product-quantity">{sanpham.soluong}</span> sản phẩm
-                            </p>  
+
+                            <div className="product-single-img">
+                                <img className="product-img__main" src={selectedImage} alt={sanpham.ten_san_pham} />
+
+                                <div className="product-img__option">
+                                    {productImages.map((img, index) => (
+                                        <div
+                                            key={index}
+                                            className={`product-img__option-item ${img === selectedImage ? 'active' : ''}`}
+                                            onClick={() => setSelectedImage(img)}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <img src={img} alt={`${sanpham.ten_san_pham} ${index + 1}`} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
-                        <p class="content__price">{formatCurrency(sanpham.gia)}</p>
-                        <div class="content__discount">{sanpham.thongbao}</div>
-                        <div class="content__color">
-                            <p class="content__color-heading">Màu sắc: <b>Hồng Nhạt</b></p>
-                            <div class="content__color-option">
-                                <div class="content__color-item active" title='{"color":"Hồng Nhạt","disabled":["3xl,2xl"]}' >
-                                    <div style={{backgroundImage: 'url(https://media3.coolmate.me/cdn-cgi/image/width=160,height=160,quality=80,format=auto/uploads/January2024/mau23CMAW.AT003.8_31.jpg)'}}></div>
-                                </div>
-                                <div class="content__color-item active" title='{"color":"Trắng","disabled":["3xl,2xl"]}' >
-                                <div   div style={{backgroundImage: 'url(https://media3.coolmate.me/cdn-cgi/image/width=160,height=160,quality=80,format=auto/uploads/October2023/promaxs3_trangg_8.jpg)'}}></div>
-                                </div>
-                                <div class="content__color-item active" title='{"color":"Xanh Rêu","disabled":["2xl"]}' >
-                                    <div style={{backgroundImage: 'url(https://media3.coolmate.me/cdn-cgi/image/width=160,height=160,quality=80,format=auto/uploads/January2024/mau23CMAW.AT003.17_62.jpg)'}}></div>
-                                </div>
-                                <div class="content__color-item active" title='{"color":"Đen","disabled":["2xl","3xl"]}' >
-                                    <div style={{backgroundImage: 'url(https://media3.coolmate.me/cdn-cgi/image/width=160,height=160,quality=80,format=auto/uploads/January2024/mau23CMAW.AT003.23.jpg)'}}></div>
-                                </div>
-                                <div class="content__color-item active" title='{"color":"Xanh","disabled":["2xl","3xl"]}' >
-                                    <div style={{backgroundImage: 'url(https://media3.coolmate.me/cdn-cgi/image/width=160,height=160,quality=80,format=auto/uploads/March2024/promax_aqua.jpg)'}}></div>
-                                </div>
+                        {/* Product Details */}
+                        <div className="content">
+                            <h1 className="content__heading">{sanpham.ten_san_pham}</h1>
+
+                            {/* Rating Display */}
+                            <div className="review-rating" style={{ marginBottom: '16px' }}>
+                                <StarRating rating={sanpham.avg_rating || 0} readOnly size={18} />
+                                <span style={{ marginLeft: '8px', color: '#666', fontSize: '14px' }}>
+                                    ({sanpham.total_reviews || 0} đánh giá)
+                                </span>
                             </div>
-                        </div>
-                        <div class="content__size">
-                            <div class="content__size-header">
-                                <span>Kích thước:</span>
+
+                            <div className="review-rating">
+                                <p className="review-label">
+                                    Đã bán: <strong>{sanpham.so_luong_mua || 0}</strong>
+                                </p>
                             </div>
-                            <div class="content__size-option">
-                                <div class=" btn-size s">S</div>
-                                <div class=" btn-size m">M</div>
-                                <div class=" btn-size l">L</div>
-                                <div class=" btn-size xl">XL</div>
-                                <div class=" btn-size 2xl is-disabled">2XL</div>
-                                <div class=" btn-size 3xl is-disabled">3XL</div>
+
+                            <div className="review-rating">
+                                <p className="review-label">
+                                    Số lượng còn: <span className="product-quantity">{sanpham.soluong}</span> sản phẩm
+                                </p>
                             </div>
-                            <div class="product-single__actions">
-                                <div class="quantity">
-                                    
-                                    <button class="btn-decrease">-</button>
-                                    <span>1</span>
-                                    <button class="btn-increase">+</button>
-                                </div>
-                                <div class="btn btn-addCart">
-                                    Chọn biến thể
-                                </div>
-                            </div>
-                        </div>
-                        <div class="product-single__policy">
-                            <div class="product-policy__item">
-                                <div class="product-policy__icon">
-                                    <img src="https://www.coolmate.me/images/icons/icon3.svg" alt=""/>
-                                </div>
-                                <p>Đổi trả cực dễ chỉ cần số điện thoại</p>
-                            </div>
-                            <div class="product-policy__item">
-                                <div class="product-policy__icon">
-                                    <img src="https://www.coolmate.me/images/icons/icon4.svg" alt=""/>
-                                </div>
-                                <p>Miễn phí vận chuyển cho đơn hàng trên 200k</p>
-                            </div>
-                            <div class="product-policy__item">
-                                <div class="product-policy__icon">
-                                    <img src="https://www.coolmate.me/images/icons/icon5.svg" alt=""/>
-                                </div>
-                                <p>60 ngày đổi trả vì bất kỳ lý do gì</p>
-                            </div>
-                            <div class="product-policy__item">
-                                <div class="product-policy__icon">
-                                    <img src="https://www.coolmate.me/images/icons/icon2.svg" alt=""/>
-                                </div>
-                                <p>Hotline 1900.27.27.37 hỗ trợ từ 8h30 - 22h mỗi ngày</p>
-                            </div>
-                            <div class="product-policy__item">
-                                <div class="product-policy__icon">
-                                    <img src="https://www.coolmate.me/images/icons/icon1.svg" alt=""/>
-                                </div>
-                                <p>Đến tận nơi nhận hàng trả, hoàn tiền trong 24h</p>
-                            </div>
-                            <div class="product-policy__item">
-                                <div class="product-policy__icon">
-                                    <img src="https://www.coolmate.me/images/icons/icon6.svg" alt=""/>
-                                </div>
-                                <p>Giao hàng 2-5 ngày(có thể lâu hơn do Covid19)</p>
-                            </div>
-                        </div>
-                        <div class="salient-features">
-                            <div class="salient-features__header">
-                                <span>Đặc điểm nổi bật</span>
-                            </div>
-                            <ul>
-                                <li class="salient-features__item">- Chất liệu: 95% Cotton Compact - 5% Spandex</li>
-                                <li class="salient-features__item">- Mềm mại và không gây khó chịu khi mặc</li>
-                                <li class="salient-features__item">- Chất liệu co giãn 4 chiều đem lại sự thoải mái suốt ngày dài</li>
-                                <li class="salient-features__item">- Bền dai, không bai, nhão, xù lông</li>
-                                <li class="salient-features__item">- Sản xuất tại xưởng 8 năm kinh nghiệm</li>
-                                <li class="salient-features__item">- Tự hào sản xuất tại Việt Nam</li>
-                                <li class="salient-features__item">- Người mẫu: 1m84 - 73kg * Mặc size 2XL</li>
-                            </ul>
-                        </div>
-                    </div>                    
-                </div>
-                <div class="detail-wrap">
-                    <div class="detail">
-                        <h2 class="detail__heading">Chi tiết sản phẩm</h2>
-                        <p><b>T-Shirt Cotton Compact Premium</b> là sản phẩm áo thun hoàn toàn mới với nhiều sự cải tiến đã được nghiên cứu kỹ lưỡng
-                            và phát triển với chất liệu <b>Cotton Compact cao cấp</b>. Một chiếc áo nên có trong tủ đồ với sự đa dụng dùng được trong mọi hoàn cảnh:
-                            đi làm, đi chơi, cafe hay cả những buổi gặp mặt lịch sự thì T-Shirt Saveman chắc chắn sẽ làm bạn trên cả sự hài lòng.
-                             <b>Đơn giản nhưng cực nam tính, đơn điệu mà vẫn thời thượng</b></p>
-                        <img src="https://mcdn.coolmate.me/image/August2020/27_77.jpg" alt=""/>
-                        <div class="info-box">Những chiếc áo của Saveman sử dụng chất liệu cotton compact,
-                             một dạng cotton chất lượng cao đem đến cho người mặc trải nghiệm tuyệt vời nhất. "Cotton Compact" là câu trả
-                             lời cho các bạn đang tìm kiếm cho mình một chiếc áo  mặc lên nhìn đẹp trai hơn một chút, bền hơn và thoáng mát hơn.
-                        </div>
-                        <img src="https://mcdn.coolmate.me/image/August2020/28_91.jpg" alt=""/>
-                        <ul style={{listStyleType:'disc', paddingLeft: '40px'}}>
-                            <li><b>Cảm giác mướt tay, êm ái và mềm mại ngay lần đầu chạm,</b> bền và mềm x2 lần so với Cotton thông thường </li>
-                            <li><b>Không nhăn, không co rút sau khi giặt,</b> chỉ cần lấy từ trong tủ và tự tin mặc mà không cần ủi đồ </li>
-                            <li>Đặc biệt cotton chất lượng cao, vải dệt thoáng khí tạo sự <b>thoải mái, thoáng mát khi mặc</b> </li>
-                        </ul>
-                        <h3>Áo Cotton Compact phiên bản Premium cùng sự cải tiến không ngừng </h3>
-                        <img src="https://mcdn.coolmate.me/uploads/December2021/29_1U.jpg" alt=""/>
-                        <h3>Một chiếc áo làm thay đổi cách nhìn nhận của bạn về áo trơn</h3>
-                        <p style={{textAlign: 'center'}}><b>Cotton Compact</b> với độ bền và <b>mềm mượt x2</b> lần cotton thường. <b>Độ Mềm - Mát</b> rõ rệt chỉ với lần chạm đầu tiên</p>
-                        <img src="https://mcdn.coolmate.me/uploads/December2021/u30_67.jpg" alt=""/>
-                        <h3>Saveman VÀ NHỮNG CHIẾC ÁO PREMIUM</h3>
-                        <table style={{fontSize: '13px'}}>
-                            <tr>
-                                <td style={{width:'50%'}}>
-                                    <p>
-                                        <b>4</b> là số lần chúng tôi không ngừng cải tiến và nâng cấp những sản phẩm
-                                         của mình từ tháng <b>02/2019 đến 6/2020</b>. Đặc biệt với <b>T-Shirt Cotton Compact:</b>
+
+                            {/* Price */}
+                            <div style={{ marginTop: '20px' }}>
+                                {sanpham.giam_gia > 0 ? (
+                                    <>
+                                        <p className="content__price" style={{ color: '#ff6b6b', fontSize: '28px', fontWeight: 'bold' }}>
+                                            {formatCurrency(discountedPrice)}
+                                        </p>
+                                        <p style={{ textDecoration: 'line-through', color: '#999', fontSize: '18px' }}>
+                                            {formatCurrency(sanpham.gia)}
+                                        </p>
+                                        <span style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            backgroundColor: '#ff6b6b',
+                                            color: 'white',
+                                            borderRadius: '4px',
+                                            fontSize: '14px',
+                                            marginTop: '8px'
+                                        }}>
+                                            Giảm {sanpham.giam_gia}%
+                                        </span>
+                                    </>
+                                ) : (
+                                    <p className="content__price" style={{ fontSize: '28px', fontWeight: 'bold' }}>
+                                        {formatCurrency(sanpham.gia)}
                                     </p>
-                                    <ul style={{listStyleType: 'disc',margin:'24px 0',paddingLeft: '40px'}}>
-                                        <li>Điều chỉnh việc chải lông kỹ hơn.</li>
-                                        <li>Cải tiến đường may đôi ở vai áo để giữ form.</li>
-                                        <li>Điều chỉnh size áo vừa vặn hơn & nâng cấp vải may ở cổ áo.</li>
-                                    </ul>
-                                    <p>Và chúng tôi chính thức cho ra mắt sản phẩm <b>áo thun không nhăn phiên bản mới
-                                        Premium Tshirt</b> - với chất liệu Cotton Compact đem đến cho người mặc sự thoáng mát và thoải mái nhất khi mặc.</p>
-                                </td>
-                                <td style={{width:'50%',textAlign: 'center'}}>
-                                    <img style={{width:'300px', margin:'0'}} src="https://mcdn.coolmate.me/image/June2020/photo_2020-05-31_10-45-59.jpg" alt=""/>
-                                </td>
-                            </tr>
-                        </table>
-                        <p style={{margin:'20px 0'}}><b>Saveman</b> tin bằng tất cả tâm huyết nghiên cứu và ra mắt,
-                        <b>Premium Tshirt Cotton Compact</b> sẽ là chiếc áo thun cotton chất lượng cao mà bất kỳ chàng trai nào cũng có trong tủ đồ của mình.
-                        </p>
-                        <img src="https://mcdn.coolmate.me/uploads/December2021/cotton_compact.jpg" alt=""/>
+                                )}
+                            </div>
+
+                            {sanpham.thongbao && (
+                                <div className="content__discount" style={{
+                                    marginTop: '12px',
+                                    padding: '12px',
+                                    backgroundColor: '#fff3cd',
+                                    borderRadius: '4px',
+                                    color: '#856404'
+                                }}>
+                                    <i className="fa-solid fa-bullhorn"></i> {sanpham.thongbao}
+                                </div>
+                            )}
+
+                            {/* Color Selection */}
+                            {sanpham.mau_sac && sanpham.mau_sac.length > 0 && (
+                                <div className="content__color" style={{ marginTop: '24px' }}>
+                                    <p className="content__color-heading">
+                                        Màu sắc: <b>{selectedColor}</b>
+                                    </p>
+                                    <div className="content__color-option" style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                                        {sanpham.mau_sac.map((color, index) => (
+                                            <div
+                                                key={index}
+                                                className={`content__color-item ${color === selectedColor ? 'active' : ''}`}
+                                                onClick={() => setSelectedColor(color)}
+                                                style={{
+                                                    padding: '8px 16px',
+                                                    border: color === selectedColor ? '2px solid #2d4b73' : '1px solid #ddd',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {color}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Size Selection */}
+                            {sanpham.size && sanpham.size.length > 0 && (
+                                <div className="content__size" style={{ marginTop: '24px' }}>
+                                    <div className="content__size-header">
+                                        <span>Kích thước: <b>{selectedSize}</b></span>
+                                    </div>
+                                    <div className="content__size-option" style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                                        {sanpham.size.map((size, index) => (
+                                            <div
+                                                key={index}
+                                                className={`btn-size ${size === selectedSize ? 'active' : ''}`}
+                                                onClick={() => setSelectedSize(size)}
+                                                style={{
+                                                    minWidth: '50px',
+                                                    padding: '10px 16px',
+                                                    textAlign: 'center',
+                                                    border: size === selectedSize ? '2px solid #2d4b73' : '1px solid #ddd',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: size === selectedSize ? 'bold' : 'normal',
+                                                    backgroundColor: size === selectedSize ? '#f0f4f8' : 'white',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {size}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="product-single__actions" style={{ marginTop: '24px' }}>
+                                        <div className="quantity">
+                                            <button className="btn-decrease" onClick={() => handleQuantityChange(-1)}>-</button>
+                                            <span>{quantity}</span>
+                                            <button className="btn-increase" onClick={() => handleQuantityChange(1)}>+</button>
+                                        </div>
+                                        <div className="btn btn-addCart" onClick={handleAddToCart}>
+                                            Thêm vào giỏ hàng
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Product Description */}
+                            {sanpham.mo_ta && (
+                                <div style={{ marginTop: '32px', padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                                    <h3 style={{ marginBottom: '12px', fontSize: '16px' }}>Mô tả sản phẩm</h3>
+                                    <p style={{ lineHeight: '1.6', color: '#555' }}>{sanpham.mo_ta}</p>
+                                </div>
+                            )}
+
+                            {/* Product Policy */}
+                            <div className="product-single__policy" style={{ marginTop: '32px' }}>
+                                <div className="product-policy__item">
+                                    <div className="product-policy__icon">
+                                        <img src="https://www.coolmate.me/images/icons/icon3.svg" alt="" />
+                                    </div>
+                                    <p>Đổi trả cực dễ chỉ cần số điện thoại</p>
+                                </div>
+                                <div className="product-policy__item">
+                                    <div className="product-policy__icon">
+                                        <img src="https://www.coolmate.me/images/icons/icon4.svg" alt="" />
+                                    </div>
+                                    <p>Miễn phí vận chuyển cho đơn hàng trên 200k</p>
+                                </div>
+                                <div className="product-policy__item">
+                                    <div className="product-policy__icon">
+                                        <img src="https://www.coolmate.me/images/icons/icon5.svg" alt="" />
+                                    </div>
+                                    <p>60 ngày đổi trả vì bất kỳ lý do gì</p>
+                                </div>
+                                <div className="product-policy__item">
+                                    <div className="product-policy__icon">
+                                        <img src="https://www.coolmate.me/images/icons/icon2.svg" alt="" />
+                                    </div>
+                                    <p>Hotline 1900.27.27.37 hỗ trợ từ 8h30 - 22h mỗi ngày</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Reviews Section */}
+                    <div className="feedback review-section" style={{ marginTop: '60px' }}>
+                        <div className="review-title" style={{ marginBottom: '30px' }}>
+                            <h2 style={{ fontSize: '24px', fontWeight: 'bold' }}>Đánh giá sản phẩm</h2>
+                        </div>
+
+                        {/* Review Form */}
+                        <ReviewForm
+                            productId={ma_san_pham}
+                            user={user}
+                            onSubmitSuccess={handleReviewSubmitSuccess}
+                        />
+
+                        {/* Review List */}
+                        <ReviewList productId={ma_san_pham} />
                     </div>
                 </div>
-                <div class="feedback">
-                    <div class="review-title">
-                        <p class="quantity-review">966 Đánh giá</p>
-                        <div class="quantity-star">
-                            <span>4.8 / 5</span>
-                            <i class="fa-solid fa-star"></i>
-                        </div>
-                    </div>
-                    <div class="review-fillter">
-                        <div class="review-fillter__rating">
-                            <select name="" id="">
-                                <option value="">Đánh giá</option>
-                                <option value="1">1 sao</option>
-                                <option value="2">2 sao</option>
-                                <option value="3">3 sao</option>
-                                <option value="4">4 sao</option>
-                                <option value="5">5 sao</option>
-                            </select>
-                        </div>
-                        <div class="review-filter__image">
-                            <select name="" id="">
-                                <option value="">Ảnh</option>
-                                <option value="true">Có ảnh</option>
-                                <option value="false">Không ảnh</option>
-                            </select>
-                        </div>
-                        <div class="review-filter__replied">
-                            <select name="" id="">
-                                <option value="">Phản hồi</option>
-                                <option value="true">Đã phản hồi</option>
-                                <option value="false">Chưa phản hồi</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="feedback-content">
-                        <div class="row no-gutters">
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star disabled"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">NguyenHai</b>
-                                        <i class="feedback-product-type">Trắng/L</i>
-                                        <p class="feedback-of-custom">Áo chất vải dai, mát mẻ, chất lượng tốt trong tầm giá.</p>
-                                        <p class="feedback-time">08.05.2023</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Nguyễn Huy Sơn</b>
-                                        <i class="feedback-product-type">màu Rêu bụi L</i>
-                                        <p class="feedback-of-custom">Do công việc bận nên cũng ko chụp được ảnh. Nhưng thật sự  chất, xịn</p>
-                                        <p class="feedback-time">08.05.2023</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star disabled"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Mai Đức Hân</b>
-                                        <i class="feedback-product-type">màu Trắng XL</i>
-                                        <p class="feedback-of-custom">Chất lượng áo tốt, đường chỉ may đều và chắc chắn. Góp ý theo ý kiến cá nhân: mình mong muốn chiếc cổ áo có thể bóp vào thêm 4cm nữa.</p>
-                                        <p class="feedback-time">08.05.2023</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Đặng Duy Hải</b>
-                                        <i class="feedback-product-type">màu Rêu bụi L</i>
-                                        <p class="feedback-of-custom">
-                                            Áo mặc thoáng mát ,mịn rất thoải mái, nhưng dẽ bị dãn</p>
-                                        <p class="feedback-time">08.05.2023</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star disabled"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Nguyễn Hoàng Phúc</b>
-                                        <i class="feedback-product-type">màu Rêu bụi XL</i>
-                                        <p class="feedback-of-custom">
-                                        Áo mặc thoáng mát, thoải mái</p>
-                                        <p class="feedback-time">08.05.2023</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star disabled"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Đỗ Quang Huynh</b>
-                                        <i class="feedback-product-type">màu xanh Biển / 3XL</i>
-                                        <p class="feedback-of-custom">hàng chất lượng</p>
-                                        <p class="feedback-time">09.04.2022</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Đỗ Quang Huynh</b>
-                                        <i class="feedback-product-type">màu Rêu bụi / 3XL</i>
-                                        <p class="feedback-of-custom">hàng chất lượng</p>
-                                        <p class="feedback-time">05.05.2033</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star disabled"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Lê Cường</b>
-                                        <i class="feedback-product-type">màu xanh Biển XL</i>
-                                        <p class="feedback-of-custom">dep</p>
-                                        <p class="feedback-time">05.10.2022</p>
-                                    </div>
-                                </div>
-                            </div>
-                                <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star disabled"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Nguyễn Khang</b>
-                                        <i class="feedback-product-type">màu Trắng L</i>
-                                        <p class="feedback-of-custom">Sản phẩm tốt. Được tặng kèm chai gel rửa tay khá ưng!.</p>
-                                        <p class="feedback-time">08.05.2023</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col p-6">
-                                <div class="feedback-item">
-                                    <div class="feedback-item__rating">
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star"></i>
-                                        <i class="fa-solid fa-star disabled"></i>
-                                    </div>
-                                    <div class="feedback-item__body">
-                                        <b class="feedback-userName">Khoa</b>
-                                        <i class="feedback-product-type">màu Đen L</i>
-                                        <p class="feedback-of-custom">Áo chất lượng, form đẹp, vải khỏi nói r.</p>
-                                        <p class="feedback-time">08.05.2023</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="feedback-page">
-                        <i class="fa-solid fa-angle-left btn-page-left"></i>
-                        <span>1/19</span>
-                        <i class="fa-solid fa-angle-right btn-page-right"></i>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </Fragment>
-  );
+            </main>
+        </Fragment>
+    );
 }

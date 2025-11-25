@@ -1,7 +1,7 @@
 // indexsp.jsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast, Flip } from 'react-toastify';
 
 export default function Indexsp() {
@@ -9,12 +9,21 @@ export default function Indexsp() {
   const [pagination, setPagination] = useState({}); // State để lưu thông tin phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+
+  const handleView = (product) => {
+    navigate(`/Viewsp/${product.ma_san_pham}`, { state: { product } });
+  };
+
+  const handleEdit = (product) => {
+    navigate(`/Updatesp/${product.ma_san_pham}`, { state: { product } });
+  };
 
   const loadData = async (page = 1) => {
     try {
       // API call đã chuẩn hóa
       const res = await axios.get(`http://localhost:5001/api/getallsp?page=${page}&limit=10`);
-      
+
       // Cập nhật state từ cấu trúc API mới
       setData(res.data.products);
       setPagination(res.data.pagination); // { total, pages, page, limit }
@@ -64,7 +73,7 @@ export default function Indexsp() {
           transition: Flip,
         });
         // Tải lại dữ liệu trang hiện tại sau khi xóa
-        loadData(currentPage); 
+        loadData(currentPage);
       } catch (err) {
         toast.error('Lỗi xóa sản phẩm');
       }
@@ -127,10 +136,10 @@ export default function Indexsp() {
                     <td>{item.ten_san_pham}</td>
                     <td>{item.soluong}</td>
                     <td>
-                      <Link to={`/Viewsp/${item.ma_san_pham}`} className="btn btn-primary">Chi Tiết</Link>
+                      <button onClick={() => handleView(item)} className="btn btn-primary">Chi Tiết</button>
                     </td>
                     <td>
-                      <Link to={`/Updatesp/${item.ma_san_pham}`} className="btn btn-warning">Sửa</Link>
+                      <button onClick={() => handleEdit(item)} className="btn btn-warning">Sửa</button>
                     </td>
                     <td>
                       <button onClick={() => deleteSP(item.ma_san_pham)} className="btn btn-danger">Xóa</button>

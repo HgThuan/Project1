@@ -1,19 +1,26 @@
-import React, { Fragment, useEffect, useState } from 'react'
-import ActiveCart, { LoadData } from '../../until/cartactive';
+import React, { Fragment, useEffect, useState } from 'react';
 import axios from "axios";
 import { useUser } from '../../until/userContext';
-
+import { useNavigate } from 'react-router-dom';
 
 export default function Cartpage() {
-
-    ActiveCart();
-
-    var list = JSON.parse(localStorage.getItem("cart")) || [];
-
+    const navigate = useNavigate();
     const { user } = useUser();
+    const [cart, setCart] = useState([]);
+
+    // Location data from API
+    const [provinces, setProvinces] = useState([]);
+    const [districts, setDistricts] = useState([]);
+    const [wards, setWards] = useState([]);
+
+    // Selected location IDs for cascading logic
+    const [selectedProvinceId, setSelectedProvinceId] = useState('');
+    const [selectedDistrictId, setSelectedDistrictId] = useState('');
+
+    // Payment method selection
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('COD');
 
     const [state, setState] = useState({
-        
         ten_khach_hang: '',
         sdt: '',
         dia_chi: '',
@@ -21,299 +28,555 @@ export default function Cartpage() {
         quan_huyen: '',
         phuong_xa: '',
         ghi_chu: '',
-        tong_tien:0
+        tong_tien: 0
     });
-         
-    const { ten_khach_hang, sdt, dia_chi, tinh_thanh, quan_huyen, phuong_xa, ghi_chu,tong_tien } = state;
-    
-    const handleInputChange = (e) => {
-      const { name, value } = e.target;
-      setState({ ...state, [name]: value });
+
+    const { ten_khach_hang, sdt, dia_chi, tinh_thanh, quan_huyen, phuong_xa, ghi_chu, tong_tien } = state;
+
+    useEffect(() => {
+        const loadCart = async () => {
+            try {
+                // 1. Try to load from localStorage first
+                const localData = localStorage.getItem("cart");
+                let parsedData = [];
+
+                if (localData) {
+                    try {
+                        parsedData = JSON.parse(localData);
+                    } catch (e) {
+                        console.error("Corrupt cart data in localStorage", e);
+                        alert("Dữ liệu giỏ hàng bị lỗi, hệ thống sẽ đặt lại giỏ hàng.");
+                        localStorage.removeItem("cart");
+                        parsedData = [];
+                    }
+                }
+
+                // 2. Validate structure
+                const validItems = Array.isArray(parsedData) ? parsedData.filter(item => {
+                    return item && item.id && item.name && item.price && item.quantity && item.img && item.color && item.size;
+                }) : [];
+
+                // 3. If local cart is empty but user is logged in, try fetching from API
+                if (validItems.length === 0 && user && user.id) {
+                    try {
+                        const response = await axios.get(`http://localhost:5001/api/cart?userId=${user.id}`);
+                        if (response.data && response.data.success) {
+                            // Convert backend format to frontend format if needed, or assume backend sends correct format
+                            // Based on previous steps, backend sends: { ma_san_pham, ten_san_pham, ... }
+                            // We need to map it to frontend structure: { id, name, ... }
+                            const apiItems = response.data.cart.map(item => ({
+                                id: item.ma_san_pham,
+                                name: item.ten_san_pham,
+                                price: item.gia,
+                                quantity: item.so_luong,
+                                img: item.anh_sanpham,
+                                color: item.mau_sac,
+                                size: item.kich_co
+                            }));
+                            setCart(apiItems);
+                            return;
+                        }
+                    } catch (apiErr) {
+                        console.warn("Failed to fetch cart from API", apiErr);
+                    }
+                }
+
+                setCart(validItems);
+
+            } catch (err) {
+                console.error("Unexpected error loading cart", err);
+                setCart([]);
+            }
+        };
+
+        // Load immediately on mount
+        loadCart();
+
+        // Listen for updates
+        window.addEventListener('cartUpdated', loadCart);
+        return () => window.removeEventListener('cartUpdated', loadCart);
+    }, [user]);
+
+    // Fetch provinces on component mount
+    useEffect(() => {
+        const fetchProvinces = async () => {
+            try {
+                const response = await axios.get('https://provinces.open-api.vn/api/p/');
+                setProvinces(response.data);
+            } catch (error) {
+                console.error('Error fetching provinces:', error);
+            }
+        };
+        fetchProvinces();
+    }, []);
+
+    const calculateTotals = () => {
+        const tamtinh = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const shippingFee = tamtinh < 200000 ? 25000 : 0;
+        const total = tamtinh + shippingFee;
+        return { tamtinh, shippingFee, total };
     };
 
-    const handlePayment = (e) =>{
+    const { tamtinh, shippingFee, total } = calculateTotals();
 
-        if(window.confirm("Xác nhận lại thông tin đơn hàng , xác nhận đặt hàng ?")){
-            e.preventDefault();
+    useEffect(() => {
+        setState((prevState) => ({ ...prevState, tong_tien: total }));
+    }, [total]);
 
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setState({ ...state, [name]: value });
+    };
+
+    // Handle province/city selection
+    const handleProvinceChange = async (e) => {
+        const provinceId = e.target.value;
+        const provinceName = provinces.find(p => p.code.toString() === provinceId)?.name || '';
+
+        setSelectedProvinceId(provinceId);
+        setState({ ...state, tinh_thanh: provinceName, quan_huyen: '', phuong_xa: '' });
+        setDistricts([]);
+        setWards([]);
+        setSelectedDistrictId('');
+
+        if (provinceId) {
+            try {
+                const response = await axios.get(`https://provinces.open-api.vn/api/p/${provinceId}?depth=2`);
+                setDistricts(response.data.districts || []);
+            } catch (error) {
+                console.error('Error fetching districts:', error);
+            }
+        }
+    };
+
+    // Handle district selection
+    const handleDistrictChange = async (e) => {
+        const districtId = e.target.value;
+        const districtName = districts.find(d => d.code.toString() === districtId)?.name || '';
+
+        setSelectedDistrictId(districtId);
+        setState({ ...state, quan_huyen: districtName, phuong_xa: '' });
+        setWards([]);
+
+        if (districtId) {
+            try {
+                const response = await axios.get(`https://provinces.open-api.vn/api/d/${districtId}?depth=2`);
+                setWards(response.data.wards || []);
+            } catch (error) {
+                console.error('Error fetching wards:', error);
+            }
+        }
+    };
+
+    // Handle ward selection
+    const handleWardChange = (e) => {
+        const wardCode = e.target.value;
+        const wardName = wards.find(w => w.code.toString() === wardCode)?.name || '';
+        setState({ ...state, phuong_xa: wardName });
+    };
+
+    // Handle payment method selection
+    const handlePaymentMethodChange = (e) => {
+        setSelectedPaymentMethod(e.target.value);
+    };
+
+    const formatCurrency = (number) => {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(number);
+    };
+
+    const handlePayment = async (e) => {
+        e.preventDefault();
+
+        if (!ten_khach_hang || !sdt || !dia_chi || !tinh_thanh || !quan_huyen || !phuong_xa) {
+            alert('Vui lòng điền đầy đủ thông tin vận chuyển');
+            return;
+        }
+
+        if (!user) {
+            alert('Vui lòng đăng nhập để đặt hàng');
+            navigate('/DangNhap');
+            return;
+        }
+
+        if (cart.length === 0) {
+            alert('Giỏ hàng của bạn đang trống');
+            return;
+        }
+
+        // Prepare order data
         const orderData = {
-            ma_khach_hang: user.id, // Thay đổi giá trị này thành ID của khách hàng
-            ngay_dat_hang: new Date().toISOString().slice(0, 10), // Lấy ngày hiện tại
-            tong_tien: tong_tien, // Tổng tiền
+            ma_khach_hang: user.id,
+            ngay_dat_hang: new Date().toISOString().slice(0, 10),
+            tong_tien: total,
             trang_thai: 1,
             ten_khach: ten_khach_hang,
             dia_chi: `${dia_chi}, ${phuong_xa}, ${quan_huyen}, ${tinh_thanh}`,
             ghi_chu: ghi_chu,
             sdt: sdt,
-        
-            chi_tiet_don_hang: list.map(item => ({
-              ma_san_pham: Number(item.id),
-              ten_san_pham: item.name, 
-              so_luong: item.quantity,
-              gia: item.price,
-              kich_co: item.size,
-              mau_sac: item.color ,
-              anh_sanpham:item.img
+            chi_tiet_don_hang: cart.map(item => ({
+                ma_san_pham: String(item.id),
+                ten_san_pham: item.name,
+                so_luong: item.quantity,
+                gia: item.price,
+                kich_co: item.size,
+                mau_sac: item.color,
+                anh_sanpham: item.img
             }))
-        }
-        axios.post("http://localhost:5000/api/addOrder", orderData)
-        .then( () => {setState({ten_khach_hang :"",sdt:"",dia_chi:"",tinh_thanh:"",phuong_xa:"",quan_huyen:"",ghi_chu:""})
-            list = [];
-            localStorage.setItem("cart", JSON.stringify(list));
-            LoadData();
-          alert("Bạn đã đặt hàng thành công");
+        };
 
-        })
-        .catch(error => {
-          console.error(error);
-          alert("Đã có lỗi xảy ra, vui lòng thử lại sau");
-        });
-        }
-        
-    }
+        // If VNPay is selected, redirect to payment gateway
+        if (selectedPaymentMethod === 'VNPay') {
+            if (window.confirm("Xác nhận thanh toán qua VNPay?")) {
+                try {
+                    // First create the order
+                    const orderResponse = await axios.post("http://localhost:5001/api/addOrder", orderData);
+                    const orderId = orderResponse.data.ma_don_hang;
 
-    useEffect(() => {
-        const tongTienElement = document.querySelector('.btn-pay--price');
-        if (tongTienElement) {
-          const value = tongTienElement.innerText || tongTienElement.textContent;
-          const numberValue = parseInt(value.replace(/[^\d]/g, ''), 10); // Loại bỏ các ký tự không phải số và chuyển đổi sang số nguyên
-          setState((prevState) => ({ ...prevState, tong_tien: numberValue }));
-        }
-      }, []);
-  return (
-    <Fragment>
-        <div className="main">
+                    // Then get VNPay payment URL
+                    const paymentResponse = await axios.post("http://localhost:5001/api/create_payment_url", {
+                        amount: total,
+                        orderInfo: `Thanh toan don hang ${orderId}`,
+                        orderId: orderId,
+                        customerName: ten_khach_hang
+                    });
 
-                {/* <!-- Phần container --> */}
+                    if (paymentResponse.data.success) {
+                        // Store order info in sessionStorage for return page
+                        sessionStorage.setItem('pendingOrder', JSON.stringify({
+                            orderId: orderId,
+                            phone: sdt
+                        }));
+
+                        // Clear cart
+                        localStorage.setItem("cart", JSON.stringify([]));
+                        setCart([]);
+                        window.dispatchEvent(new Event('cartUpdated'));
+
+                        // Redirect to VNPay
+                        window.location.href = paymentResponse.data.paymentUrl;
+                    } else {
+                        alert("Không thể tạo link thanh toán, vui lòng thử lại");
+                    }
+                } catch (error) {
+                    console.error('VNPay payment error:', error);
+                    alert("Đã có lỗi xảy ra khi tạo thanh toán VNPay");
+                }
+            }
+        } else {
+            // COD or other payment methods - existing flow
+            if (window.confirm("Xác nhận lại thông tin đơn hàng, xác nhận đặt hàng?")) {
+                axios.post("http://localhost:5001/api/addOrder", orderData)
+                    .then((res) => {
+                        setState({
+                            ten_khach_hang: "",
+                            sdt: "",
+                            dia_chi: "",
+                            tinh_thanh: "",
+                            phuong_xa: "",
+                            quan_huyen: "",
+                            ghi_chu: "",
+                            tong_tien: 0
+                        });
+                        localStorage.setItem("cart", JSON.stringify([]));
+                        setCart([]);
+                        window.dispatchEvent(new Event('cartUpdated'));
+                        window.dispatchEvent(new Event('cartUpdated'));
+                        alert("Bạn đã đặt hàng thành công! Chuyển hướng đến trang theo dõi đơn hàng.");
+                        navigate('/tracking', { state: { orderId: res.data.ma_don_hang, phone: sdt } });
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        alert("Đã có lỗi xảy ra, vui lòng thử lại sau");
+                    });
+            }
+        }
+    };
+
+    return (
+        <Fragment>
+            <div className="main">
                 <div className="cartPage-container">
-                    <form className="info">
+                    {/* Shipping Information Form */}
+                    <form className="info" onSubmit={handlePayment}>
                         <div className="info-header">
                             <h2>Thông tin vận chuyển</h2>
                         </div>
+
                         <div className="row info-body">
                             <div className="col p-6">
-                                <input className="input-name"name="ten_khach_hang" onChange={handleInputChange} value={ten_khach_hang} placeholder="Họ tên" type="text" />
+                                <input
+                                    className="input-name"
+                                    name="ten_khach_hang"
+                                    onChange={handleInputChange}
+                                    value={ten_khach_hang}
+                                    placeholder="Họ tên *"
+                                    type="text"
+                                    required
+                                />
                             </div>
                             <div className="col p-6">
-                                <input className="input-phone" name="sdt" onChange={handleInputChange} value={sdt} placeholder="Số điện thoại" type="text"/>
+                                <input
+                                    className="input-phone"
+                                    name="sdt"
+                                    onChange={handleInputChange}
+                                    value={sdt}
+                                    placeholder="Số điện thoại *"
+                                    type="tel"
+                                    required
+                                />
                             </div>
                             <div className="col p-12">
-                                <input className="input-adress" name="dia_chi" onChange={handleInputChange} value={dia_chi} placeholder="Địa chỉ" type="text"/>
+                                <input
+                                    className="input-adress"
+                                    name="dia_chi"
+                                    onChange={handleInputChange}
+                                    value={dia_chi}
+                                    placeholder="Địa chỉ *"
+                                    type="text"
+                                    required
+                                />
                             </div>
                             <div className="adress col p-4">
-                                <select  onChange={handleInputChange} value={tinh_thanh} name="tinh_thanh">
+                                <select
+                                    onChange={handleProvinceChange}
+                                    value={selectedProvinceId}
+                                    name="tinh_thanh"
+                                    required
+                                >
                                     <option value="">Chọn Tỉnh/Thành Phố</option>
-                                    <option value="">Chọn Tỉnh/Thành Phố</option>
-                                    <option value="Hà Nội">Hà Nội</option>
-                                    <option value="Hải Phòng">Hải Phòng</option>
-                                    <option value="Quảng Ninh">Quảng Ninh</option>
-                                    <option value="Bắc Ninh">Bắc Ninh</option>
-                                    <option value="Bắc Giang">Bắc Giang</option>
-                                    <option value="Hải Dương">Hải Dương</option>
-                                    <option value="Hưng Yên">Hưng Yên</option>
-                                    <option value="Thái Bình">Thái Bình</option>
-                                    <option value="Nam Định">Nam Định</option>
-                                    <option value="Ninh Bình">Ninh Bình</option>
-                                    <option value="Phú Thọ">Phú Thọ</option>
+                                    {provinces.map(province => (
+                                        <option key={province.code} value={province.code}>
+                                            {province.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="adress col p-4">
-                                <select  onChange={handleInputChange} value={quan_huyen} name="quan_huyen" >
+                                <select
+                                    onChange={handleDistrictChange}
+                                    value={selectedDistrictId}
+                                    name="quan_huyen"
+                                    required
+                                    disabled={!selectedProvinceId || districts.length === 0}
+                                >
                                     <option value="">Chọn Quận/Huyện</option>
-                                    <option value="Ba Đình">Ba Đình</option>
-                                    <option value="Hoàn Kiếm">Hoàn Kiếm</option>
-                                    <option value="Đống Đa">Đống Đa</option>
-                                    <option value="Cầu Giấy">Cầu Giấy</option>
-                                    <option value="Long Biên">Long Biên</option>
-                                    <option value="Hà Đông">Hà Đông</option>
-                                    <option value="Gia Lâm">Gia Lâm</option>
-                                    <option value="Đông Anh">Đông Anh</option>
-                                    <option value="Sóc Sơn">Sóc Sơn</option>
-                                    <option value="Thanh Xuân">Thanh Xuân</option>
+                                    {districts.map(district => (
+                                        <option key={district.code} value={district.code}>
+                                            {district.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="adress col p-4">
-                                <select onChange={handleInputChange} value={phuong_xa} name="phuong_xa">
-                                <option value="">Chọn Phường/Xã</option>
-                                    <option value="Phường Bách Khoa">Phường Bách Khoa</option>
-                                    <option value="Phường Cát Linh">Phường Cát Linh</option>
-                                    <option value="Phường Dịch Vọng">Phường Dịch Vọng</option>
-                                    <option value="Phường Gia Thụy">Phường Gia Thụy</option>
-                                    <option value="Phường Hoàng Liệt">Phường Hoàng Liệt</option>
-                                    <option value="Phường Kim Giang">Phường Kim Giang</option>
-                                    <option value="Phường Láng Hạ">Phường Láng Hạ</option>
-                                    <option value="Phường Mai Dịch">Phường Mai Dịch</option>
-                                    <option value="Xã An Khánh">Xã An Khánh</option>
-                                    <option value="Xã Đông Ngạc">Xã Đông Ngạc</option>
+                                <select
+                                    onChange={handleWardChange}
+                                    value={phuong_xa ? wards.find(w => w.name === phuong_xa)?.code || '' : ''}
+                                    name="phuong_xa"
+                                    required
+                                    disabled={!selectedDistrictId || wards.length === 0}
+                                >
+                                    <option value="">Chọn Phường/Xã</option>
+                                    {wards.map(ward => (
+                                        <option key={ward.code} value={ward.code}>
+                                            {ward.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="col p-12">
-                                <input onChange={handleInputChange} value={ghi_chu} name="ghi_chu" className="input-adress" placeholder="Ghi chú thêm" type="text"/>
+                                <input
+                                    onChange={handleInputChange}
+                                    value={ghi_chu}
+                                    name="ghi_chu"
+                                    className="input-adress"
+                                    placeholder="Ghi chú thêm (không bắt buộc)"
+                                    type="text"
+                                />
                             </div>
                         </div>
+
+                        {/* Payment Methods */}
                         <div className="payments">
-                            <h2 className="payments">Hình thức thanh toán
-                            </h2>
+                            <h2 className="payments">Hình thức thanh toán</h2>
                             <div className="payments-item active">
-                                <input type="radio" className="check" name="check" value="ZaloPay"/>
+                                <input
+                                    type="radio"
+                                    className="check"
+                                    name="check"
+                                    value="ZaloPay"
+                                    checked={selectedPaymentMethod === 'ZaloPay'}
+                                    onChange={handlePaymentMethodChange}
+                                />
                                 <img src="https://www.coolmate.me/images/logo-zalopay.svg" alt="" />
                                 <p className="payments-item__text">Ví điện tử ZaloPay</p>
                             </div>
                             <div className="payments-item">
-                                <input type="radio" className="check" name="check" value="COD"/>
-                                <img style={{width:'35px',height:'35px'}}  src="https://www.coolmate.me/images/COD.svg" alt="" />
-                                <div className="payments-item__text"><p>COD</p>
-                                    <p>Thanh toán khi nhận hàng</p></div>
-                            </div>
-                            <div className="payments-item">
-                                <input type="radio" className="check" name="check" value="COD"/>
-                                <img src="https://shop-document.aftee.vn/images/AFTEElogo_40x40.svg" alt="" />
-                                <div className="payments-item__text" style={{display:'block'}}>
-                                <div style={{display:'flex',alignItems:'center',display:'block'}} className=' aftee-cm-title-container'>
-                                <p>AFTEE - Mua sắm thuận tiện,linh hoạt </p>
-                                <p>Trả sau miễn phí trong 10 giây chỉ với số điện thoại</p></div>
-
-                                </div>
-                                  
-                            </div>
-                            <div className="payments-item">
-                                <input type="radio" className="check" name="check" value="MoMo"/>
-                                <img style={{width:'35px' , height:'35px'}} src="https://www.coolmate.me/images/momo-icon.png" alt="" />
-                                <div className="payments-item__text"><p>MOMO</p>
-                                    <p>Ưu đãi đầy bất ngờ</p></div>
-                            </div>
-                            <div className="payments-item">
-                                <input type="radio" className="check" name="check" value="ShopeePay"/>
-                                <img style={{width:'35px',height:'35px'}} src="https://gateway.zalopay.vn/image/emvco/icon-vietqr.svg" alt="" />
+                                <input
+                                    type="radio"
+                                    className="check"
+                                    name="check"
+                                    value="COD"
+                                    checked={selectedPaymentMethod === 'COD'}
+                                    onChange={handlePaymentMethodChange}
+                                />
+                                <img style={{ width: '35px', height: '35px' }} src="https://www.coolmate.me/images/COD.svg" alt="" />
                                 <div className="payments-item__text">
-                                <p>Quét QR & Thanh toán bằng ứng dụng ngân hàng</p>
-                                <i style={{fontSize:'13px'}}>Mờ ứng dụng ngân hàng để thanh toán</i>
+                                    <p>COD</p>
+                                    <p>Thanh toán khi nhận hàng</p>
                                 </div>
                             </div>
                             <div className="payments-item">
-                                <input type="radio" className="check" name="check" value="VNPay"/>
-                                <img style={{width:'55px'}} src="https://www.coolmate.me/images/vnpay.png" alt="" />
+                                <input
+                                    type="radio"
+                                    className="check"
+                                    name="check"
+                                    value="MoMo"
+                                    checked={selectedPaymentMethod === 'MoMo'}
+                                    onChange={handlePaymentMethodChange}
+                                />
+                                <img style={{ width: '35px', height: '35px' }} src="https://www.coolmate.me/images/momo-icon.png" alt="" />
+                                <div className="payments-item__text">
+                                    <p>MOMO</p>
+                                    <p>Ưu đãi đầy bất ngờ</p>
+                                </div>
+                            </div>
+                            <div className="payments-item">
+                                <input
+                                    type="radio"
+                                    className="check"
+                                    name="check"
+                                    value="VNPay"
+                                    checked={selectedPaymentMethod === 'VNPay'}
+                                    onChange={handlePaymentMethodChange}
+                                />
+                                <img style={{ width: '55px' }} src="https://www.coolmate.me/images/vnpay.png" alt="" />
                                 <div className="payments-item__text">
                                     <p>Thẻ ATM / Internet Banking</p>
                                     <p>Thẻ tín dụng (Credit card) / Thẻ ghi nợ (Debit card) VNPay QR</p>
                                 </div>
                             </div>
-                            <p style={{paddingLeft: '5px'}}>Nếu bạn không hài lòng với sản phẩm của chúng tôi? Bạn hoàn toàn có thể trả lại sản phẩm. Tìm hiểu thêm <a style={{fontWeight:'700'}} href="">tại đây</a>.</p>
-                            <button type="submit" onClick={handlePayment} className="btn-pay">Thanh toán <span className="btn-pay--price"></span>(<span className="type-payment">ZaloPay</span>)</button>
+
+                            <p style={{ paddingLeft: '5px', marginTop: '20px' }}>
+                                Nếu bạn không hài lòng với sản phẩm của chúng tôi? Bạn hoàn toàn có thể trả lại sản phẩm.
+                                Tìm hiểu thêm <a style={{ fontWeight: '700' }} href="/returns">tại đây</a>.
+                            </p>
+
+                            <button
+                                type="submit"
+                                className="btn-pay"
+                                disabled={cart.length === 0}
+                                style={{ opacity: cart.length === 0 ? 0.5 : 1 }}
+                            >
+                                Thanh toán <span className="btn-pay--price">{formatCurrency(total)}</span>
+                                (<span className="type-payment">{selectedPaymentMethod}</span>)
+                            </button>
                         </div>
                     </form>
 
-                    {/* <!-- tạo khuôn đổ dữ liệu --> */}
+                    {/* Cart Items */}
                     <div className="list-product">
                         <div className="list-product__inner">
-                            <h2>Giỏ hàng</h2>
-                            <div className="list-product__item">
-                                    <div className="list-product__item-img">
-                                    <img src="https://media.coolmate.me/uploads/March2022/tshirtxcool-4-copy_160x181.jpg" alt=""/>
+                            <h2>Giỏ hàng ({cart.length} sản phẩm)</h2>
+
+                            {cart.length === 0 ? (
+                                <div style={{
+                                    textAlign: 'center',
+                                    padding: '60px 20px',
+                                    backgroundColor: '#f9f9f9',
+                                    borderRadius: '8px',
+                                    marginTop: '20px'
+                                }}>
+                                    <i className="fa-solid fa-cart-shopping" style={{ fontSize: '64px', color: '#ddd', marginBottom: '20px' }}></i>
+                                    <p style={{ fontSize: '18px', color: '#999', marginBottom: '20px' }}>
+                                        Giỏ hàng của bạn đang trống
+                                    </p>
+                                    <a
+                                        href="/product"
+                                        style={{
+                                            display: 'inline-block',
+                                            padding: '12px 24px',
+                                            backgroundColor: '#2d4b73',
+                                            color: 'white',
+                                            textDecoration: 'none',
+                                            borderRadius: '4px'
+                                        }}
+                                    >
+                                        Tiếp tục mua sắm
+                                    </a>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="list-product__items">
+                                        {cart.map((item, index) => (
+                                            <div key={index} className="list-product__item">
+                                                <div className="list-product__item-img">
+                                                    <img src={item.img} alt={item.name} />
+                                                </div>
+                                                <div className="list-product__item-content">
+                                                    <div className="list-product__item-name">{item.name}</div>
+                                                    <div className="list-product__item-type">{item.color}/{item.size}</div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                                                        <div className="quantity-product">
+                                                            <span>x{item.quantity}</span>
+                                                        </div>
+                                                        <div className="product-price">
+                                                            <div className="product-new-price">{formatCurrency(item.price)}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
 
-                                    <div className="list-product__item-content">
-                                    <div className="list-product__item-name">Áo thun cổ tròn Excool</div>
-                                    <div className="list-product__item-type">Đen/L</div>
-                                    <div style={{display:'flex', justifyContent: 'flex-start', margin: '28px 0 6px'}} className="">
-                                        <div className="single-product-color single-product-select">
-                                            <span>Đen</span>
-                                            <i className="fa-solid fa-angle-down"></i>
-                                        </div>
-                                        <div className="single-product-size single-product-select">
-                                            <span>L</span>
-                                            <i className="fa-solid fa-angle-down"></i>
-                                        </div >                          
+                                    <div className='cart-viewing-users mgt--10'>
+                                        <i>
+                                            <span>Có </span>
+                                            <b>5</b>
+                                            <span> người đang thêm cùng sản phẩm giống bạn vào giỏ hàng.</span>
+                                        </i>
                                     </div>
-                                    <div style={{display:'flex',justifyContent: 'space-between',alignItems: 'center'}}>  
-                                        <div className="quantity-product">
-                                            <button>
-                                                <svg data-v-0d8807a2="" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><g data-v-0d8807a2=""><line data-v-0d8807a2="" stroke-width="1.5" id="svg_6" y2="8" x2="10" y1="8" x1="5" stroke="#000000" fill="none"></line></g></svg>
-                                            </button>
-                                            <span>1</span>
-                                            <button>
-                                                <svg data-v-0d8807a2="" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><g data-v-0d8807a2=""><line data-v-0d8807a2="" stroke-width="1.5" y2="8" x2="12.9695" y1="8" x1="3.0305" stroke="#000000" fill="none"></line> <line data-v-0d8807a2="" stroke-width="1.5" transform="rotate(90, 8, 8)" y2="8" x2="13" y1="8" x1="3" stroke="#000000" fill="none"></line></g></svg>
-                                            </button>
-                                        </div>
-                                        <div className="product-price">
-                                            <div className="product-new-price">254.000đ</div>
-                                            <div className="product-old-price">299.000đ</div>
-                                        </div>
-                                    </div>
-                                    <div className="list-product__close">
-                                        <i className="fa-solid fa-xmark"></i>
-                                    </div>
-                                </div>
-                                </div>
-                                
-                                
-                            </div>   
-                        <div className='cart-viewing-users mgt--10'>
-                            <i>
-                                <span>Có </span>
-                                <b>5</b>
-                                <span> người đang thêm cùng sản phẩm giống bạn vào giỏ hàng.</span>
-                            </i>
-                        </div>
-                        <div className='discount-block'>
-                              <div className='coupon-public'>
-                                <div className='coupons'>
-                                    <div className='coupon coupon--COOL05'>
-                                        <div className='coupon-left'>
 
+                                    <div className='discount-block'>
+                                        <div className='discount-box'>
+                                            <input type="text" placeholder='Nhập mã giảm giá' />
+                                            <button disabled>Áp dụng</button>
                                         </div>
-                                        <div className='coupon-right'>
-                                            <div className='coupon-title'>
-                                                COOL05
-                                                <span className='coupon-count'>
-                                                <i>(Còn 1159)</i>
+                                    </div>
+
+                                    <div style={{ marginTop: '30px', padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                                        <div className="cost-detail">
+                                            <span>Tạm tính</span>
+                                            <span className="tamTinh">{formatCurrency(tamtinh)}</span>
+                                        </div>
+                                        <div className="cost-detail">
+                                            <span>Giảm giá</span>
+                                            <span className="sale-off">0đ</span>
+                                        </div>
+                                        <div className="cost-detail">
+                                            <span>Phí giao hàng</span>
+                                            <span className="delever-cost">
+                                                {shippingFee > 0 ? formatCurrency(shippingFee) : 'Miễn phí'}
                                             </span>
-                                            </div>
-                                            <div className='coupon-description'>
-                                            Giảm 50K cho đơn hàng từ  590K
-                                            </div>
-                                            
+                                        </div>
+                                        <div className="total" style={{
+                                            marginTop: '16px',
+                                            paddingTop: '16px',
+                                            borderTop: '2px solid #ddd',
+                                            fontSize: '20px',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            <span>Tổng</span>
+                                            <span className="total__price" style={{ color: '#ff6b6b' }}>
+                                                {formatCurrency(total)}
+                                            </span>
                                         </div>
                                     </div>
-                                </div>
-                              </div>
-                              <div className='discount-box'>
-                                    <input data-v-48bbe076 type="text"  placeholder='Nhập mã giảm giá'/>
-                                    <button data-v-48bbe076 disabled = "disabled"> Áp dụng</button>
-                              </div>
-                              <div className='discount-block'>
-                                <p className='discount-heading mb-4'>
-                                    Sử dụng Voucher
-
-                                    <span>
-                                        <img src="https://mcdn.coolmate.me/image/April2023/mceclip0_92.png" alt="" />
-                                        <button className='text-gray-light cursor-pointer btn-gray'>Nhập mã</button>
-                                    </span>
-                                </p>
-                              </div>
-                              
+                                </>
+                            )}
                         </div>
-                        <div style={{    marginTop: '10px'}} className="cost-detail">
-                            <span>Tạm tính</span>
-                            <span className="tamTinh"></span>
-                        </div>
-                        <div className="cost-detail">
-                            <span>Giảm giá</span>
-                            <span className="sale-off">0đ</span>
-                        </div>
-                        <div className="cost-detail">
-                            <span>Phí giao hàng</span>
-                            <span className="delever-cost">Miễn phí</span>
-                        </div>
-                        <div className="total">
-                            <span>Tổng</span>
-                            <span className="total__price"></span>
-                        </div>        
-                        </div>
-                       
                     </div>
-                    
                 </div>
-    </Fragment>
-  );
+            </div>
+        </Fragment>
+    );
 }

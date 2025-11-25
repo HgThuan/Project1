@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -12,7 +12,7 @@ const initialState = {
   ma_danh_muc: '',
   soluong: '',
   mo_ta: '',
-  so_luong_mua: '0', 
+  so_luong_mua: '0',
   giam_gia: '0',
   gioi_tinh: 'Unisex',
 };
@@ -23,12 +23,22 @@ export default function Editsp() {
   const { ten_san_pham, gia, size, mau_sac, anh_sanpham, ma_danh_muc, soluong, mo_ta, so_luong_mua, giam_gia, gioi_tinh } = state;
   const { ma_san_pham } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    axios.get(`http://localhost:5001/api/getsp/${ma_san_pham}`)
-      .then((resp) => setState(prevState => ({ ...prevState, ...resp.data[0] })))
-      .catch((err) => console.error('Lỗi tải dữ liệu:', err));
-  }, [ma_san_pham]);
+    if (location.state && location.state.product) {
+      setState(prevState => ({ ...prevState, ...location.state.product }));
+    } else {
+      axios.get(`http://localhost:5001/api/getsp/${ma_san_pham}`)
+        .then((resp) => {
+          // Fix: API returns { success: true, product: {...} }
+          // If it returns an array in some cases, handle that too, but based on controller it returns .product
+          const productData = resp.data.product || resp.data[0];
+          setState(prevState => ({ ...prevState, ...productData }));
+        })
+        .catch((err) => console.error('Lỗi tải dữ liệu:', err));
+    }
+  }, [ma_san_pham, location.state]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -56,7 +66,7 @@ export default function Editsp() {
       formData.append('ma_danh_muc', ma_danh_muc);
       formData.append('soluong', soluong);
       formData.append('mo_ta', mo_ta);
-      formData.append('so_luong_mua', so_luong_mua || 0); 
+      formData.append('so_luong_mua', so_luong_mua || 0);
       formData.append('giam_gia', giam_gia || 0);
       formData.append('gioi_tinh', gioi_tinh || 'Unisex');
       if (file) {
@@ -195,25 +205,25 @@ export default function Editsp() {
               <option value="50">50%</option>
             </select>
           </div>
-          
+
         </div>
         <div className="row">
-           <div className="col mb-3">
-             <label className="form-label">Đối tượng</label>
-             <select
-               name="gioi_tinh"
-               className="form-control"
-               onChange={handleInputChange}
-               value={gioi_tinh || 'Unisex'} // Dùng || để tránh lỗi khi data là null
-             >
-               <option value="Unisex">Unisex (Nam/Nữ)</option>
-               <option value="Nam">Nam</option>
-               <option value="Nữ">Nữ</option>
-             </select>
-           </div>
-           <div className="col mb-3">
-             {/* Để trống cho cân bằng layout */}
-           </div>
+          <div className="col mb-3">
+            <label className="form-label">Đối tượng</label>
+            <select
+              name="gioi_tinh"
+              className="form-control"
+              onChange={handleInputChange}
+              value={gioi_tinh || 'Unisex'} // Dùng || để tránh lỗi khi data là null
+            >
+              <option value="Unisex">Unisex (Nam/Nữ)</option>
+              <option value="Nam">Nam</option>
+              <option value="Nữ">Nữ</option>
+            </select>
+          </div>
+          <div className="col mb-3">
+            {/* Để trống cho cân bằng layout */}
+          </div>
         </div>
         <div className="row">
           <img

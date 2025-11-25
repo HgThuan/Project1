@@ -3,92 +3,115 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-const initiaState = {
-   ten_nhan_vien:"",
-   gioi_tinh:"",
-   ngay_sinh:"",
-   dia_chi:"",
-   sdt:"",
-   cmnd:"",
-   anh_nhanvien:""
-}
+const initialState = {
+    name: "",
+    email: "",
+    password: "",
+    phoneNumber: "",
+    role: "staff",
+    permissions: []
+};
 
 export default function Createnv() {
-
-    const [state , setState] = useState(initiaState);
-
-    const{ten_nhan_vien ,gioi_tinh ,dia_chi ,ngay_sinh ,sdt ,cmnd ,anh_nhanvien } = state;
-
+    const [state, setState] = useState(initialState);
+    const { name, email, password, phoneNumber, role, permissions } = state;
     const navigate = useNavigate();
+
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('token');
+        return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if(!ten_nhan_vien || !gioi_tinh || !dia_chi || !ngay_sinh  || !sdt || !cmnd || !anh_nhanvien){
-            toast.error("Vui lòng nhập đủ thông tin ")
-        } else{
-            axios.post("http://localhost:5000/api/createnv",{
-                ten_nhan_vien,gioi_tinh,dia_chi,ngay_sinh,sdt,cmnd,anh_nhanvien
-            }).then(()=> {setState({ ten_nhan_vien:"",gioi_tinh:"",ngay_sinh:"", dia_chi:"",sdt:"",cmnd:"",anh_nhanvien:""})})
-            .catch((err) => toast.error(err.response.data));
-            toast.success("Thêm nhân viên thành công  !")
-            setTimeout(() => navigate("/Indexnv"),500);
+        if (!name || !email || !password || !phoneNumber) {
+            toast.error("Vui lòng nhập đủ thông tin bắt buộc");
+            return;
         }
-    }
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        setState({ ...state, anh_nhanvien: `/images/${file.name}` });
-      };
+        axios.post("http://localhost:5001/api/createstaff", state, getAuthHeaders())
+            .then(() => {
+                toast.success("Thêm nhân viên thành công!");
+                setState(initialState);
+                setTimeout(() => navigate("/Indexnv"), 500);
+            })
+            .catch((err) => toast.error(err.response?.data?.message || "Lỗi khi thêm nhân viên"));
+    };
 
-    const handleInputChange = (e) =>{
-        const{name,value} = e.target;
-        setState({...state,[name]:value});
-    }
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setState({ ...state, [name]: value });
+    };
 
-  return (
-    <div>
-        <h3 class="mb-0">Thêm nhân viên</h3>
-        <hr />
-        <form onSubmit={handleSubmit}  enctype="multipart/form-data">
-    
-            <div class="row mb-3">
-                <div class="col">
-                    <input type="text" name="ten_nhan_vien" onChange={handleInputChange} value={ten_nhan_vien} class="form-control" placeholder="Tên nhân viên "/>
+    const handlePermissionChange = (e) => {
+        const { value, checked } = e.target;
+        let newPermissions = [...permissions];
+        if (checked) {
+            newPermissions.push(value);
+        } else {
+            newPermissions = newPermissions.filter(p => p !== value);
+        }
+        setState({ ...state, permissions: newPermissions });
+    };
+
+    return (
+        <div>
+            <h3 className="mb-0">Thêm nhân viên (Tài khoản)</h3>
+            <hr />
+            <form onSubmit={handleSubmit}>
+                <div className="row mb-3">
+                    <div className="col">
+                        <label>Tên nhân viên</label>
+                        <input type="text" name="name" onChange={handleInputChange} value={name} className="form-control" placeholder="Nhập tên" required />
+                    </div>
+                    <div className="col">
+                        <label>Email (Tên đăng nhập)</label>
+                        <input type="email" name="email" onChange={handleInputChange} value={email} className="form-control" placeholder="Nhập email" required />
+                    </div>
                 </div>
-                <div class="col">
-                    <input type="text" name="gioi_tinh" onChange={handleInputChange} value={gioi_tinh} class="form-control" placeholder="Giới tính"/>
+                <div className="row mb-3">
+                    <div className="col">
+                        <label>Mật khẩu</label>
+                        <input type="password" name="password" onChange={handleInputChange} value={password} className="form-control" placeholder="Nhập mật khẩu" required />
+                    </div>
+                    <div className="col">
+                        <label>Số điện thoại</label>
+                        <input type="text" name="phoneNumber" onChange={handleInputChange} value={phoneNumber} className="form-control" placeholder="Nhập SĐT" required />
+                    </div>
                 </div>
-            </div>
-            <div class="row mb-3">
-                <div class="col">
-                    <input type="date" name="ngay_sinh" onChange={handleInputChange} value={ngay_sinh} class="form-control" placeholder="Ngày sinh"/>
+                <div className="row mb-3">
+                    <div className="col">
+                        <label>Vai trò</label>
+                        <select name="role" value={role} onChange={handleInputChange} className="form-control">
+                            <option value="staff">Nhân viên (Staff)</option>
+                            <option value="admin">Quản trị viên (Admin)</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="col">
-                    <input type="text" name="dia_chi" onChange={handleInputChange} value={dia_chi} class="form-control" placeholder="Địa chỉ"/>
+                <div className="row mb-3">
+                    <div className="col">
+                        <label>Quyền hạn</label>
+                        <div className="form-check">
+                            <input className="form-check-input" type="checkbox" value="manage_orders" id="permOrders" checked={permissions.includes('manage_orders')} onChange={handlePermissionChange} />
+                            <label className="form-check-label" htmlFor="permOrders">Quản lý đơn hàng</label>
+                        </div>
+                        <div className="form-check">
+                            <input className="form-check-input" type="checkbox" value="manage_products" id="permProducts" checked={permissions.includes('manage_products')} onChange={handlePermissionChange} />
+                            <label className="form-check-label" htmlFor="permProducts">Quản lý sản phẩm</label>
+                        </div>
+                        <div className="form-check">
+                            <input className="form-check-input" type="checkbox" value="manage_customers" id="permCustomers" checked={permissions.includes('manage_customers')} onChange={handlePermissionChange} />
+                            <label className="form-check-label" htmlFor="permCustomers">Quản lý khách hàng</label>
+                        </div>
+                    </div>
                 </div>
 
-            </div>
-            <div class="row mb-3">
-                <div class="col">
-                    <input type="text" name="sdt" onChange={handleInputChange} value={sdt} class="form-control" placeholder="Số điện thoại"/>
+                <div className="row">
+                    <div className="d-grid">
+                        <button style={{ marginLeft: '10px' }} type="submit" className="btn btn-primary">Thêm</button>
+                    </div>
                 </div>
-                <div class="col">
-                    <input type="text" class="form-control" name="cmnd" onChange={handleInputChange} value={cmnd} placeholder="Căn cước công dân"/>
-                </div>
-            </div>
-            <div class="row mb-3">
-
-                <div class="col">
-                    <input type="file" name="anh_nhanvien" onChange={handleFileChange} class="form-control" placeholder="Ảnh nhân viên"/>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="d-grid">
-                    <button style={{marginLeft: '10px'}} type="submit" class="btn btn-primary">Thêm</button>
-                </div>
-            </div>
-        </form>
-    </div>
-  )
+            </form>
+        </div>
+    )
 }

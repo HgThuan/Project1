@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 
 export default function Viewsp() {
   const formatCurrency = (number) => {
@@ -9,12 +9,21 @@ export default function Viewsp() {
 
   const [sanpham, setData] = useState({});
   const { ma_san_pham } = useParams();
+  const location = useLocation();
 
   useEffect(() => {
-    axios.get(`http://localhost:5001/api/getsp/${ma_san_pham}`)
-      .then((resp) => setData({ ...resp.data[0] }))
-      .catch((err) => console.error('Lỗi tải chi tiết:', err));
-  }, [ma_san_pham]);
+    if (location.state && location.state.product) {
+      setData(location.state.product);
+    } else {
+      axios.get(`http://localhost:5001/api/getsp/${ma_san_pham}`)
+        .then((resp) => {
+          // Fix: API returns { success: true, product: {...} }
+          const productData = resp.data.product || resp.data[0];
+          setData({ ...productData });
+        })
+        .catch((err) => console.error('Lỗi tải chi tiết:', err));
+    }
+  }, [ma_san_pham, location.state]);
 
   return (
     <div>
@@ -82,25 +91,25 @@ export default function Viewsp() {
           />
         </div>
         <div className="row">
-        <div className="col mb-3">
-          <label className="form-label">Số lượng đã bán</label>
-          <input
-            type="text"
-            className="form-control"
-            value={sanpham.so_luong_mua || 0}
-            readOnly
-          />
+          <div className="col mb-3">
+            <label className="form-label">Số lượng đã bán</label>
+            <input
+              type="text"
+              className="form-control"
+              value={sanpham.so_luong_mua || 0}
+              readOnly
+            />
+          </div>
+          <div className="col mb-3">
+            <label className="form-label">Giảm giá</label>
+            <input
+              type="text"
+              className="form-control"
+              value={`${sanpham.giam_gia || 0}%`}
+              readOnly
+            />
+          </div>
         </div>
-        <div className="col mb-3">
-          <label className="form-label">Giảm giá</label>
-          <input
-            type="text"
-            className="form-control"
-            value={`${sanpham.giam_gia || 0}%`}
-            readOnly
-          />
-        </div>
-      </div>
       </div>
       <div className="row">
         <div className="col mb-3">
@@ -126,24 +135,24 @@ export default function Viewsp() {
           />
         </div>
         <div className="row">
-        <div className="col mb-3">
-          <label className="form-label">Mô tả</label>
-          <textarea
-            className="form-control"
-            value={sanpham.mo_ta || ''}
-            readOnly
-          ></textarea>
+          <div className="col mb-3">
+            <label className="form-label">Mô tả</label>
+            <textarea
+              className="form-control"
+              value={sanpham.mo_ta || ''}
+              readOnly
+            ></textarea>
+          </div>
+          <div className="col mb-3">
+            <label className="form-label">Đối tượng</label>
+            <input
+              type="text"
+              className="form-control"
+              value={sanpham.gioi_tinh || 'Unisex'} // Hiển thị giá trị
+              readOnly
+            />
+          </div>
         </div>
-        <div className="col mb-3">
-          <label className="form-label">Đối tượng</label>
-          <input
-            type="text"
-            className="form-control"
-            value={sanpham.gioi_tinh || 'Unisex'} // Hiển thị giá trị
-            readOnly
-          />
-        </div>
-      </div>
       </div>
       <div className="row">
         <div className="col mb-3">

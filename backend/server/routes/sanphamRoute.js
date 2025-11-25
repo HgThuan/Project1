@@ -14,7 +14,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
@@ -35,6 +35,9 @@ router.get('/api/sanpham/gender/:gioi_tinh', productController.getProductsByGend
 router.get('/api/sanpham/filter/sale', productController.getSaleProducts);
 router.get('/api/sanpham/filter/new', productController.getNewProducts);
 router.get('/api/sanpham/filter/best-seller', productController.getBestSellerProducts);
+
+// Unified search and filter endpoint
+router.get('/api/products/search', productController.searchAndFilterProducts);
 
 router.use((error, req, res, next) => {
   if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {

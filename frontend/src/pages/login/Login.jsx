@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../../until/userContext';
-import axios from 'axios'; 
+import axios from 'axios';
+import { syncCartToBackend } from '../../until/cartApi';
+
 const API_URL = 'http://localhost:5001/api/auth';
 
 const Login = () => {
@@ -14,9 +16,9 @@ const Login = () => {
   const navigate = useNavigate();
 
   // 3. Cập nhật hàm handleLogin
-const handleLogin = async () => {
+  const handleLogin = async () => {
     try {
-      const response = await axios.post(`${API_URL}/login`, {
+      const response = await axios.post(`${API_URL}/login-user`, {
         email: username,
         password: password,
       });
@@ -27,8 +29,24 @@ const handleLogin = async () => {
       // 2. LƯU VÀO LOCALSTORAGE (ĐÂY LÀ BƯỚC QUAN TRỌNG NHẤT)
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       updateUser({ id: user.id, name: user.name, username: user.username, is_admin: user.is_admin });
+
+      // 3. SYNC CART: Merge localStorage cart with backend
+      try {
+        const localCart = JSON.parse(localStorage.getItem('cart') || '[]');
+        if (localCart.length > 0) {
+          await syncCartToBackend(user.id, localCart);
+          // Clear localStorage cart after successful sync
+          localStorage.setItem('cart', '[]');
+          // Trigger cart update event
+          window.dispatchEvent(new CustomEvent('cartUpdated'));
+        }
+      } catch (syncError) {
+        console.error('Cart sync failed:', syncError);
+        // Don't block login if cart sync fails
+      }
+
       alert(`Xin chào, ${user.name}!`);
       navigate('/');
 

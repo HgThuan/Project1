@@ -1,0 +1,221 @@
+.order-list-container {
+    padding: 20px;
+    background-color: #f5f7fa;
+    min-height: 100vh;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 24px;
+}
+
+.orders-table-wrapper {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+}
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orders-table th {
+    background-color: #f8fafc;
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.orders-table td {
+    padding: 16px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+}
+
+.text-muted {
+    color: #94a3b8;
+    font-size: 0.9em;
+}
+
+.price {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+/* Status Styles */
+.status-select {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+}
+
+.status-pending {
+    background-color: #fff7ed;
+    color: #c2410c;
+    border-color: #ffedd5;
+}
+
+.status-processing {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border-color: #dbeafe;
+}
+
+.status-shipping {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+    border-color: #f3e8ff;
+}
+
+.status-completed {
+    background-color: #f0fdf4;
+    color: #15803d;
+    border-color: #dcfce7;
+}
+
+.status-cancelled {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border-color: #fee2e2;
+}
+
+.btn-view {
+    padding: 6px 16px;
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-view:hover {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+/* Expanded Details */
+.order-details-row {
+    background-color: #f8fafc;
+}
+
+.order-details {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+}
+
+.details-section h4 {
+    font-size: 16px;
+    color: #334155;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.product-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.product-item {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: white;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.product-item img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.product-info {
+    flex: 1;
+}
+
+.product-name {
+    font-weight: 500;
+    color: #1e293b;
+    font-size: 14px;
+}
+
+.product-meta {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.product-price {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 14px;
+}
+
+/* Print Styles */
+@media print {
+
+    /* Hide everything except the invoice modal content */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show only the invoice modal */
+    .invoice-modal,
+    .invoice-modal * {
+        visibility: visible;
+    }
+
+    /* Position invoice modal for printing */
+    .invoice-modal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+    }
+
+    /* Hide modal backdrop */
+    .invoice-modal::before {
+        display: none;
+    }
+
+    /* Hide action buttons in print */
+    .invoice-modal button,
+    .modal-actions {
+        display: none !important;
+    }
+
+    /* Clean print layout */
+    @page {
+        margin: 1cm;
+        size: A4;
+    }
+
+    /* Ensure proper page breaks */
+    .invoice-modal table {
+        page-break-inside: avoid;
+    }
+
+    /* Ensure colors and backgrounds are printed */
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

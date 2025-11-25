@@ -33,6 +33,9 @@ const registerUser = async (req, res) => {
             email,
             phoneNumber,
             password,
+            role: 'customer',
+            is_admin: 0,
+            isActive: true
         });
 
         if (user) {
@@ -52,13 +55,90 @@ const registerUser = async (req, res) => {
  * @route   POST /api/auth/login
  * @access  Public
  */
-const loginUser = async (req, res) => {
+/**
+ * @desc    Đăng nhập cho Khách hàng (User App)
+ * @route   POST /api/auth/login-user
+ * @access  Public
+ */
+const loginCustomer = async (req, res) => {
     const { email, password } = req.body;
 
     try {
         const user = await Taikhoan.findOne({ email });
 
         if (user && (await user.matchPassword(password))) {
+            if (!user.isActive) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Tài khoản đã bị khóa',
+                    reason: user.lockedReason || 'Không có lý do cụ thể'
+                });
+            }
+
+            // CRITICAL CHECK: Ensure user is a customer
+            if (user.role !== 'customer') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Tài khoản quản trị không thể đăng nhập ở đây.',
+                });
+            }
+
+            // Update last login
+            user.lastLogin = new Date();
+            await user.save();
+
+            res.json({
+                token: generateToken(user._id, user.is_admin),
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    phoneNumber: user.phoneNumber,
+                    avatar: user.avatar
+                },
+            });
+        } else {
+            res.status(401).json({ message: 'Email hoặc mật khẩu không đúng' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: `Lỗi máy chủ: ${error.message}` });
+    }
+};
+
+/**
+ * @desc    Đăng nhập cho Admin/Staff (Manager App)
+ * @route   POST /api/auth/login-admin
+ * @access  Public
+ */
+const loginAdmin = async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const user = await Taikhoan.findOne({ email });
+
+        if (user && (await user.matchPassword(password))) {
+            if (!user.isActive) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Tài khoản đã bị khóa',
+                    reason: user.lockedReason || 'Không có lý do cụ thể'
+                });
+            }
+
+            // CRITICAL CHECK: Ensure user is admin or staff
+            if (user.role !== 'admin' && user.role !== 'staff') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Bạn không có quyền truy cập vào hệ thống quản lý',
+                    detail: 'Chỉ quản trị viên và nhân viên mới có thể đăng nhập'
+                });
+            }
+
+            // Update last login
+            user.lastLogin = new Date();
+            await user.save();
+
             res.json({
                 token: generateToken(user._id, user.is_admin),
                 user: {
@@ -66,6 +146,8 @@ const loginUser = async (req, res) => {
                     name: user.name,
                     email: user.email,
                     is_admin: user.is_admin,
+                    role: user.role,
+                    permissions: user.permissions,
                 },
             });
         } else {
@@ -78,5 +160,6 @@ const loginUser = async (req, res) => {
 
 module.exports = {
     registerUser,
-    loginUser,
+    loginCustomer,
+    loginAdmin,
 };

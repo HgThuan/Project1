@@ -1,19 +1,35 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios';
-import { toast ,Flip } from 'react-toastify';
+import { toast, Flip } from 'react-toastify';
 
 export default function Indexkh() {
-    const [data,setData] = useState([]);
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    const loadData = async() =>{
-        const response = await axios.get("http://localhost:5000/api/getallkh");
-        setData(response.data);
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('token');
+        return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
     };
 
-    useEffect(()=>{
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get("http://localhost:5001/api/getallaccount", getAuthHeaders());
+            // Filter only customers
+            const customers = response.data.filter(user => user.role === 'customer');
+            setData(customers);
+        } catch (error) {
+            console.error("Error loading customers", error);
+            toast.error("Không thể tải danh sách khách hàng");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         loadData();
-    },[]);
+    }, []);
 
     const handleSearch = async (e) => {
         const searchTerm = e.target.value;
@@ -21,80 +37,84 @@ export default function Indexkh() {
             loadData();
         } else {
             try {
-                const response = await axios.get(`http://localhost:5000/api/searchkh/${searchTerm}`);
-                setData(response.data);
+                const response = await axios.get(`http://localhost:5001/api/searchtk/${searchTerm}`, getAuthHeaders());
+                const customers = response.data.filter(user => user.role === 'customer');
+                setData(customers);
             } catch (error) {
                 console.error("Error searching data", error);
             }
         }
     };
-    
 
-    const deleteKH = (ma_khach_hang) => {
-        if(window.confirm("Bạn có muốn xóa sản phẩm này không ?")){
-            axios.delete(`http://localhost:5000/api/deletekh/${ma_khach_hang}`)
-            toast.success('Xóa sản phẩm thành công !', {
-             position: "top-right",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "light",
-                transition: Flip,
-                });
-            setTimeout(()=>loadData(),500);
+    const toggleLock = async (id, currentStatus) => {
+        if (window.confirm(`Bạn có chắc muốn ${currentStatus ? 'khóa' : 'mở khóa'} tài khoản này?`)) {
+            try {
+                await axios.put(`http://localhost:5001/api/update/${id}`, { isActive: !currentStatus }, getAuthHeaders());
+                toast.success(`${currentStatus ? 'Khóa' : 'Mở khóa'} thành công!`);
+                loadData();
+            } catch (error) {
+                console.error("Error updating status", error);
+                toast.error("Lỗi khi cập nhật trạng thái");
+            }
         }
-    }
-  return (
-    <div class="card shadow mb-4">
-        <div class="d-flex align-items-center justify-content-between card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Dữ Liệu Khách Hàng</h6>
-            <Link to="/Createkh" class="btn btn-primary">Thêm khách hàng</Link>
-        </div>
-        <div className="d-flex align-items-center  card-header ">
-            <form className="d-none d-sm-inline-block form-inline mr-auto my-2 my-md-0 mw-100 navbar-search">
+    };
+
+    return (
+        <div className="card shadow mb-4">
+            <div className="d-flex align-items-center justify-content-between card-header py-3">
+                <h6 className="m-0 font-weight-bold text-primary">Quản Lý Khách Hàng (User App)</h6>
+            </div>
+            <div className="d-flex align-items-center card-header">
+                <form className="d-none d-sm-inline-block form-inline mr-auto my-2 my-md-0 mw-100 navbar-search">
                     <div className="input-group">
                         <label htmlFor="">Tìm kiếm :</label>
-                        <input style={{marginLeft:'5px'}}type="text" onChange={handleSearch} className="form-control form-control-sm" placeholder="nhập dữ liệu tìm kiếm" aria-label="Search" aria-describedby="basic-addon2"/>
+                        <input style={{ marginLeft: '5px' }} type="text" onChange={handleSearch} className="form-control form-control-sm" placeholder="nhập tên hoặc email" aria-label="Search" />
                     </div>
                 </form>
             </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Tên khách hàng</th>
-                            <th>Số điện thoại</th>
-                            <th>Chi tiết</th>
-                            <th>Sửa</th>
-                            <th>Xóa</th>
-
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {data.map((item,index)=>{
-                            return( 
-                            <tr key={item.ma_khach_hang}>
-                                <td>{index+1}</td>
-                                <td>{item.ten_khach_hang}</td>
-                                <td>{item.so_dien_thoai}</td>
-                                <td><Link to={`/Viewkh/${item.ma_khach_hang}`} type="button" class="btn btn-primary">Chi Tiết</Link></td>
-                                <td><Link to={`/Updatekh/${item.ma_khach_hang}`} class="btn btn-warning">Sửa</Link></td>
-                                <td>
-                                        <button type='submit' onClick={()=>deleteKH(item.ma_khach_hang)} class='btn btn-danger'>Xóa</button>
-                                </td>
-                            </tr>)
-                        })}
-                       
-                    </tbody>
-                </table>
+            <div className="card-body">
+                <div className="table-responsive">
+                    <table className="table table-bordered" id="dataTable" width="100%" cellSpacing="0">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Tên khách hàng</th>
+                                <th>Email</th>
+                                <th>Số điện thoại</th>
+                                <th>Trạng thái</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.length === 0 ? (
+                                <tr><td colSpan="6" className="text-center">Không có khách hàng nào</td></tr>
+                            ) : (
+                                data.map((item, index) => (
+                                    <tr key={item.id}>
+                                        <td>{index + 1}</td>
+                                        <td>{item.ten_nguoi_dung}</td>
+                                        <td>{item.email}</td>
+                                        <td>{item.phoneNumber}</td>
+                                        <td>
+                                            <span className={`badge ${item.isActive ? 'bg-success' : 'bg-danger'}`}>
+                                                {item.isActive ? 'Hoạt động' : 'Đã khóa'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button
+                                                onClick={() => toggleLock(item.id, item.isActive)}
+                                                className={`btn btn-sm ${item.isActive ? 'btn-warning' : 'btn-success'}`}
+                                            >
+                                                {item.isActive ? 'Khóa' : 'Mở khóa'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
-  )
+    )
 }

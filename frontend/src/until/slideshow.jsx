@@ -3,15 +3,21 @@ import { useEffect } from "react";
 export function StartSlider() {
     useEffect(() => {
 
-        const $ = window.$;
+        const btnContact = document.querySelector(".btn-contact");
+        const message = document.querySelector(".message");
+        const hideMessage = document.querySelector(".hide-message");
 
-        $(".btn-contact").click(function(){
-            $(".message").addClass("active")
-        })
-    
-        $(".hide-message").click(function(){
-            $(".message").removeClass("active")
-        })
+        if (btnContact && message) {
+            btnContact.addEventListener("click", () => {
+                message.classList.add("active");
+            });
+        }
+
+        if (hideMessage && message) {
+            hideMessage.addEventListener("click", () => {
+                message.classList.remove("active");
+            });
+        }
 
         const list = document.getElementsByClassName("slide-img");
         let index = 0;
@@ -23,18 +29,18 @@ export function StartSlider() {
         list[index].style.display = "block";
 
         function showL() {
-          // Kiểm tra xem mảng list có phần tử không và index có hợp lệ không
-          if (list.length > 0 && index >= 0 && index < list.length) {
-              for (let x of list) {
-                  x.style.display = "none";
-              }
-              if (index === 0) index = list.length - 1;
-              else index -= 1;
-              list[index].style.display = "block";
-              setTimeout(showL, 2000);
-          }
-      }
-      
+            // Kiểm tra xem mảng list có phần tử không và index có hợp lệ không
+            if (list.length > 0 && index >= 0 && index < list.length) {
+                for (let x of list) {
+                    x.style.display = "none";
+                }
+                if (index === 0) index = list.length - 1;
+                else index -= 1;
+                list[index].style.display = "block";
+                setTimeout(showL, 2000);
+            }
+        }
+
 
         function showR() {
             for (let x of list) {
@@ -54,6 +60,6 @@ export function StartSlider() {
             clearTimeout(showR);
         };
 
-        
+
     }, []); // Gọi chỉ một lần sau khi component được render
 }

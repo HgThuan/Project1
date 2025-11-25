@@ -1,0 +1,89 @@
+/* ProductSort.css */
+.product-sort {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin-bottom: 24px;
+}
+
+.product-sort__info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.product-sort__count {
+    font-size: 14px;
+    color: #666;
+}
+
+.product-sort__count strong {
+    color: #2d4b73;
+    font-weight: 700;
+}
+
+.product-sort__controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.product-sort__label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.product-sort__select {
+    padding: 10px 36px 10px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E") no-repeat right 12px center;
+    background-size: 12px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    min-width: 200px;
+}
+
+.product-sort__select:hover {
+    border-color: #2d4b73;
+}
+
+.product-sort__select:focus {
+    border-color: #2d4b73;
+    box-shadow: 0 0 0 3px rgba(45, 75, 115, 0.1);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .product-sort {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .product-sort__info {
+        justify-content: center;
+    }
+
+    .product-sort__controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .product-sort__select {
+        width: 100%;
+        min-width: auto;
+    }
+}

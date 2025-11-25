@@ -27,8 +27,51 @@ const taikhoanSchema = mongoose.Schema(
             type: String,
             required: [true, 'Vui lòng nhập số điện thoại'],
         },
+        address: {
+            type: String,
+            default: '',
+        },
+        dateOfBirth: {
+            type: Date,
+            default: null,
+        },
+        gender: {
+            type: String,
+            enum: ['Nam', 'Nữ', 'Khác'],
+            default: 'Nam',
+        },
+        avatar: {
+            type: String,
+            default: '',
+        },
+        role: {
+            type: String,
+            enum: ['customer', 'staff', 'admin'],
+            default: 'customer',
+        },
+        permissions: {
+            type: [String], // e.g., ['manage_orders', 'manage_products']
+            default: [],
+        },
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
+        lockedReason: {
+            type: String,
+            default: null,
+        },
+        lastLogin: {
+            type: Date,
+            default: null,
+        },
+        createdBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Taikhoan',
+            default: null,
+        },
         is_admin: {
-            type: Number, // 0 = User, 1 = Admin
+            type: Number, // 0 = User, 1 = Admin/Staff (Legacy support)
             required: true,
             default: 0,
         },

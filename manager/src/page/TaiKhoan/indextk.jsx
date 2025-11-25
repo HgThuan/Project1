@@ -1,5 +1,6 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 // Hàm này sẽ lấy token từ localStorage và tạo header
 const getAuthHeaders = () => {
@@ -28,6 +29,7 @@ export default function TaiKhoan() {
         'http://localhost:5001/api/getallaccount',
         getAuthHeaders() // <--- GỬI KÈM TOKEN
       );
+      console.log('API Response:', response.data); // Debug log
       setData(response.data);
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu:', error.response?.data?.message || error.message);
@@ -85,20 +87,20 @@ export default function TaiKhoan() {
       <div className="card shadow mb-4">
         <div className="d-flex align-items-center justify-content-between card-header py-3">
           <h6 className="m-0 font-weight-bold text-primary">Dữ Liệu Tài Khoản</h6>
-          <a href="/them-tai-khoan" className="btn btn-primary">Thêm tài khoản</a>
+          <Link to="/them-tai-khoan" className="btn btn-primary">Thêm tài khoản</Link>
         </div>
-        
+
         <div className="d-flex align-items-center card-header">
           <form className="d-none d-sm-inline-block form-inline mr-auto my-2 my-md-0 mw-100 navbar-search">
             <div className="input-group">
               <label htmlFor="searchInput">Tìm kiếm :</label>
-              <input 
-                style={{marginLeft:'5px'}}
-                type="text" 
-                onChange={handleSearch} 
-                className="form-control form-control-sm" 
-                placeholder="nhập dữ liệu tìm kiếm" 
-                aria-label="Search" 
+              <input
+                style={{ marginLeft: '5px' }}
+                type="text"
+                onChange={handleSearch}
+                className="form-control form-control-sm"
+                placeholder="nhập dữ liệu tìm kiếm"
+                aria-label="Search"
                 id="searchInput"
               />
             </div>
@@ -150,29 +152,32 @@ export default function TaiKhoan() {
                     <tr key={item.id || index}>
                       <td>{index + 1}</td>
                       <td>{item.email}</td>
-                      <td>{item.ten_nguoi_dung || 'Chưa có thông tin'}</td> {/* Sửa từ password sang tên người dùng */}
-                      <td>••••••••</td> {/* Ẩn mật khẩu thực */}
+                      <td>{item.ten_nguoi_dung || 'Chưa có thông tin'}</td>
+                      <td>••••••••</td>
                       <td>
-                        <span className={`badge ${item.is_admin === 1 ? 'bg-danger' : 'bg-success'}`}>
-                          {item.is_admin === 1 ? "Admin" : "User"}
+                        <span className={`badge ${item.role === 'admin' ? 'bg-danger' :
+                          item.role === 'staff' ? 'bg-warning' : 'bg-success'
+                          }`}>
+                          {item.role ? item.role.toUpperCase() : (item.is_admin === 1 ? "ADMIN" : "CUSTOMER")}
                         </span>
                       </td>
                       <td>
-                        <a href={`/chi-tiet-tai-khoan/${item.id}`} className="btn btn-primary btn-sm">
+                        <Link to={`/chi-tiet-tai-khoan/${item.id}`} className="btn btn-primary btn-sm">
                           Chi Tiết
-                        </a>
+                        </Link>
                       </td>
                       <td>
-                        <a href={`/sua-tai-khoan/${item.id}`} className="btn btn-warning btn-sm">
+                        <Link to={`/sua-tai-khoan/${item.id}`} className="btn btn-warning btn-sm">
                           Sửa
-                        </a>
+                        </Link>
                       </td>
                       <td>
-                        <button 
-                          type='button' 
-                          onClick={() => handleDelete(item.id)} 
+                        <button
+                          type='button'
+                          onClick={() => handleDelete(item.id)}
                           className='btn btn-danger btn-sm'
-                          disabled={item.is_admin === 1} // Không cho xóa admin
+                          // Không cho xóa admin
+                          disabled={item.is_admin === 1}
                         >
                           Xóa
                         </button>

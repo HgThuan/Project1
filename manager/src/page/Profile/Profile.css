@@ -1,0 +1,93 @@
+/* Profile Page Styles */
+
+.profile-page {
+    padding: 20px;
+}
+
+.profile-header {
+    margin-bottom: 20px;
+}
+
+/* Profile Avatar */
+.profile-avatar-large {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 48px;
+    margin: 0 auto;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Permission List */
+.permission-list-readonly {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.permission-item {
+    padding: 8px 12px;
+    background: #f8f9fc;
+    border-left: 3px solid #1cc88a;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.permission-item i {
+    width: 20px;
+}
+
+/* Cards */
+.card {
+    border: none;
+    border-radius: 0.35rem;
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+/* Form Disabled State */
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background-color: #f8f9fc;
+    cursor: not-allowed;
+}
+
+/* Badges */
+.badge {
+    padding: 0.35em 0.65em;
+    font-size: 0.875rem;
+}
+
+.badge-danger {
+    background-color: #e74a3b;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #f6c23e;
+    color: #1f2125;
+}
+
+.badge-info {
+    background-color: #36b9cc;
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .profile-avatar-large {
+        width: 100px;
+        height: 100px;
+        font-size: 40px;
+    }
+}
