@@ -7,8 +7,9 @@ import axios from 'axios';
  * Displays product reviews with pagination and filtering
  * 
  * @param {string} productId - Product ID (ma_san_pham)
+ * @param {object} currentUser - Current logged-in user object
  */
-export default function ReviewList({ productId }) {
+export default function ReviewList({ productId, currentUser }) {
     const [reviews, setReviews] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -16,6 +17,12 @@ export default function ReviewList({ productId }) {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [ratingFilter, setRatingFilter] = useState(null);
+
+    // Edit state
+    const [editingReview, setEditingReview] = useState(null);
+    const [editRating, setEditRating] = useState(0);
+    const [editComment, setEditComment] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
 
     const loadReviews = async () => {
         setLoading(true);
@@ -53,6 +60,84 @@ export default function ReviewList({ productId }) {
     const handleFilterChange = (rating) => {
         setRatingFilter(rating === ratingFilter ? null : rating);
         setPage(1); // Reset to first page when filtering
+    };
+
+    const isOwner = (review) => {
+        return currentUser && review.ma_khach_hang === currentUser.id;
+    };
+
+    const handleEditClick = (review) => {
+        setEditingReview(review);
+        setEditRating(review.rating);
+        setEditComment(review.comment);
+    };
+
+    const handleUpdateReview = async () => {
+        if (!editingReview) return;
+
+        if (editRating === 0) {
+            alert('Vui lòng chọn số sao đánh giá');
+            return;
+        }
+
+        if (!editComment.trim()) {
+            alert('Vui lòng nhập nhận xét');
+            return;
+        }
+
+        if (editComment.trim().length < 10) {
+            alert('Nhận xét phải có ít nhất 10 ký tự');
+            return;
+        }
+
+        setIsUpdating(true);
+
+        try {
+            const response = await axios.put(`http://localhost:5001/api/reviews/${editingReview._id}`, {
+                rating: editRating,
+                comment: editComment.trim(),
+                ma_khach_hang: currentUser.id
+            });
+
+            if (response.data.success) {
+                alert('Đánh giá đã được cập nhật!');
+                setEditingReview(null);
+                setEditRating(0);
+                setEditComment('');
+                // Reload reviews and stats
+                loadReviews();
+                setStats(null); // Force stats reload
+            }
+        } catch (err) {
+            console.error('Error updating review:', err);
+            alert(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật đánh giá');
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleDeleteReview = async (reviewId) => {
+        if (!window.confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) {
+            return;
+        }
+
+        try {
+            const response = await axios.delete(`http://localhost:5001/api/reviews/${reviewId}`, {
+                data: {
+                    ma_khach_hang: currentUser.id
+                }
+            });
+
+            if (response.data.success) {
+                alert('Đánh giá đã được xóa!');
+                // Reload reviews and stats
+                loadReviews();
+                setStats(null); // Force stats reload
+            }
+        } catch (err) {
+            console.error('Error deleting review:', err);
+            alert(err.response?.data?.message || 'Có lỗi xảy ra khi xóa đánh giá');
+        }
     };
 
     const formatDate = (dateString) => {
@@ -203,8 +288,44 @@ export default function ReviewList({ productId }) {
                                 </div>
                                 <StarRating rating={review.rating} readOnly size={16} />
                             </div>
-                            <div style={{ fontSize: '13px', color: '#999' }}>
-                                {formatDate(review.createdAt)}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {isOwner(review) && (
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            onClick={() => handleEditClick(review)}
+                                            style={{
+                                                padding: '4px 8px',
+                                                fontSize: '12px',
+                                                backgroundColor: '#2d4b73',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                            title="Chỉnh sửa"
+                                        >
+                                            <i className="fa-solid fa-edit"></i> Sửa
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteReview(review._id)}
+                                            style={{
+                                                padding: '4px 8px',
+                                                fontSize: '12px',
+                                                backgroundColor: '#dc3545',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                            title="Xóa"
+                                        >
+                                            <i className="fa-solid fa-trash"></i> Xóa
+                                        </button>
+                                    </div>
+                                )}
+                                <div style={{ fontSize: '13px', color: '#999' }}>
+                                    {formatDate(review.createdAt)}
+                                </div>
                             </div>
                         </div>
 
@@ -264,6 +385,111 @@ export default function ReviewList({ productId }) {
                     >
                         <i className="fa-solid fa-angle-right"></i>
                     </button>
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {editingReview && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }} onClick={() => !isUpdating && setEditingReview(null)}>
+                    <div style={{
+                        backgroundColor: 'white',
+                        padding: '30px',
+                        borderRadius: '8px',
+                        maxWidth: '600px',
+                        width: '90%',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <h3 style={{ marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+                            Chỉnh sửa đánh giá
+                        </h3>
+
+                        {/* Rating */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                                Đánh giá: <span style={{ color: 'red' }}>*</span>
+                            </label>
+                            <StarRating rating={editRating} onChange={setEditRating} size={32} />
+                            {editRating > 0 && (
+                                <span style={{ marginLeft: '12px', color: '#666' }}>
+                                    {editRating === 5 ? 'Xuất sắc!' :
+                                        editRating === 4 ? 'Rất tốt!' :
+                                            editRating === 3 ? 'Tốt' :
+                                                editRating === 2 ? 'Tạm được' : 'Không hài lòng'}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Comment */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                                Nhận xét: <span style={{ color: 'red' }}>*</span>
+                            </label>
+                            <textarea
+                                value={editComment}
+                                onChange={(e) => setEditComment(e.target.value)}
+                                rows={5}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    fontSize: '14px',
+                                    fontFamily: 'inherit',
+                                    resize: 'vertical'
+                                }}
+                                disabled={isUpdating}
+                            />
+                            <small style={{ color: '#666', fontSize: '12px' }}>
+                                Tối thiểu 10 ký tự ({editComment.length}/10)
+                            </small>
+                        </div>
+
+                        {/* Buttons */}
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setEditingReview(null)}
+                                disabled={isUpdating}
+                                style={{
+                                    padding: '10px 20px',
+                                    backgroundColor: '#6c757d',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    fontSize: '14px',
+                                    cursor: isUpdating ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleUpdateReview}
+                                disabled={isUpdating}
+                                style={{
+                                    padding: '10px 20px',
+                                    backgroundColor: isUpdating ? '#ccc' : '#2d4b73',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: isUpdating ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                {isUpdating ? 'Đang cập nhật...' : 'Cập nhật'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

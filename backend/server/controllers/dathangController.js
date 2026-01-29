@@ -246,7 +246,7 @@ exports.getOrderById = async (req, res) => {
 exports.cancelOrder = async (req, res) => {
     try {
         const { ma_don_hang } = req.params;
-        const { userId } = req.body;
+        const { userId, ly_do_huy } = req.body;
 
         const order = await DatHang.findOne({ ma_don_hang });
 
@@ -263,6 +263,9 @@ exports.cancelOrder = async (req, res) => {
         }
 
         order.trang_thai = 5; // 5: Đã hủy
+        order.ly_do_huy = ly_do_huy || 'Khách hàng hủy đơn';
+        order.nguoi_huy = 'customer';
+        order.nguoi_huy_id = userId;
         await order.save();
 
         res.status(200).json({ success: true, message: 'Đã hủy đơn hàng thành công' });
@@ -336,6 +339,7 @@ exports.getUserOrders = async (req, res) => {
 exports.softDeleteOrder = async (req, res) => {
     try {
         const { ma_don_hang } = req.params;
+        const { ly_do_huy, nguoi_huy_id } = req.body;
 
         const order = await DatHang.findOne({ ma_don_hang });
 
@@ -345,6 +349,9 @@ exports.softDeleteOrder = async (req, res) => {
 
         // Update status to Cancelled (5)
         order.trang_thai = 5;
+        order.ly_do_huy = ly_do_huy || 'Quản lý hủy đơn';
+        order.nguoi_huy = 'manager';
+        order.nguoi_huy_id = nguoi_huy_id || 'admin';
         await order.save();
 
         res.status(200).json({

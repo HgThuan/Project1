@@ -40,6 +40,18 @@ const DatHangSchema = new mongoose.Schema({
     thanh_toan: {
         type: String,
         default: 'Chưa thanh toán'
+    },
+    ly_do_huy: {
+        type: String,
+        default: null
+    },
+    nguoi_huy: {
+        type: String, // 'customer' or 'manager'
+        default: null
+    },
+    nguoi_huy_id: {
+        type: String,
+        default: null
     }
 }, {
     timestamps: true

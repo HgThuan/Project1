@@ -299,7 +299,7 @@ export const MiniCart = () => {
             </span>
           </div>
           <button className="mini-cart__checkout-btn" onClick={goToCart}>
-            Xem giỏ hàng
+            Đặt hàng
           </button>
         </div>
       )}

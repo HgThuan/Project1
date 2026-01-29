@@ -87,7 +87,7 @@ export default function TaiKhoan() {
       <div className="card shadow mb-4">
         <div className="d-flex align-items-center justify-content-between card-header py-3">
           <h6 className="m-0 font-weight-bold text-primary">Dữ Liệu Tài Khoản</h6>
-          <Link to="/them-tai-khoan" className="btn btn-primary">Thêm tài khoản</Link>
+
         </div>
 
         <div className="d-flex align-items-center card-header">

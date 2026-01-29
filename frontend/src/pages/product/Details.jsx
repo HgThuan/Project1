@@ -19,6 +19,8 @@ export default function Details() {
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedImage, setSelectedImage] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [sizeInventory, setSizeInventory] = useState([]);
+    const [maxQuantity, setMaxQuantity] = useState(0);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -37,9 +39,22 @@ export default function Details() {
                     if (product.mau_sac && product.mau_sac.length > 0) {
                         setSelectedColor(product.mau_sac[0]);
                     }
-                    if (product.size && product.size.length > 0) {
+
+                    // Handle size inventory
+                    if (product.size_type === 'managed' && response.data.sizeInventory) {
+                        setSizeInventory(response.data.sizeInventory);
+                        if (response.data.sizeInventory.length > 0) {
+                            const firstAvailable = response.data.sizeInventory.find(s => s.so_luong > 0);
+                            if (firstAvailable) {
+                                setSelectedSize(firstAvailable.size);
+                                setMaxQuantity(firstAvailable.so_luong);
+                            }
+                        }
+                    } else if (product.size && product.size.length > 0) {
                         setSelectedSize(product.size[0]);
+                        setMaxQuantity(product.soluong || 999);
                     }
+
                     setSelectedImage(product.anh_sanpham);
                 } else {
                     setError('Không tìm thấy sản phẩm');
@@ -74,14 +89,45 @@ export default function Details() {
     const handleQuantityChange = (amount) => {
         setQuantity(prev => {
             const newQuantity = prev + amount;
-            return newQuantity < 1 ? 1 : newQuantity;
+            if (newQuantity < 1) return 1;
+            if (newQuantity > maxQuantity) return maxQuantity;
+            return newQuantity;
         });
+    };
+
+    const handleSizeChange = (size) => {
+        setSelectedSize(size);
+
+        // Update max quantity based on selected size
+        if (sanpham.size_type === 'managed') {
+            const sizeRecord = sizeInventory.find(s => s.size === size);
+            if (sizeRecord) {
+                setMaxQuantity(sizeRecord.so_luong);
+                // Reset quantity if it exceeds new max
+                if (quantity > sizeRecord.so_luong) {
+                    setQuantity(sizeRecord.so_luong > 0 ? 1 : 0);
+                }
+            }
+        }
     };
 
     const handleAddToCart = async () => {
         if (!selectedColor || !selectedSize) {
             alert('Vui lòng chọn màu sắc và kích thước');
             return;
+        }
+
+        // Validate stock availability
+        if (sanpham.size_type === 'managed') {
+            const sizeRecord = sizeInventory.find(s => s.size === selectedSize);
+            if (!sizeRecord || sizeRecord.so_luong < 1) {
+                alert('Size này hiện đã hết hàng');
+                return;
+            }
+            if (quantity > sizeRecord.so_luong) {
+                alert(`Chỉ còn ${sizeRecord.so_luong} sản phẩm size ${selectedSize}`);
+                return;
+            }
         }
 
         const item = {
@@ -260,46 +306,91 @@ export default function Details() {
                             )}
 
                             {/* Size Selection */}
-                            {sanpham.size && sanpham.size.length > 0 && (
-                                <div className="content__size" style={{ marginTop: '24px' }}>
-                                    <div className="content__size-header">
-                                        <span>Kích thước: <b>{selectedSize}</b></span>
-                                    </div>
-                                    <div className="content__size-option" style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                                        {sanpham.size.map((size, index) => (
-                                            <div
-                                                key={index}
-                                                className={`btn-size ${size === selectedSize ? 'active' : ''}`}
-                                                onClick={() => setSelectedSize(size)}
-                                                style={{
-                                                    minWidth: '50px',
-                                                    padding: '10px 16px',
-                                                    textAlign: 'center',
-                                                    border: size === selectedSize ? '2px solid #2d4b73' : '1px solid #ddd',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    fontWeight: size === selectedSize ? 'bold' : 'normal',
-                                                    backgroundColor: size === selectedSize ? '#f0f4f8' : 'white',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                            >
-                                                {size}
-                                            </div>
-                                        ))}
-                                    </div>
+                            {((sanpham.size_type === 'managed' && sizeInventory.length > 0) ||
+                                (sanpham.size && sanpham.size.length > 0)) && (
+                                    <div className="content__size" style={{ marginTop: '24px' }}>
+                                        <div className="content__size-header">
+                                            <span>Kích thước: <b>{selectedSize}</b></span>
+                                            {sanpham.size_type === 'managed' && selectedSize && (
+                                                <span style={{ marginLeft: '10px', color: '#666', fontSize: '14px' }}>
+                                                    (Còn {maxQuantity} sản phẩm)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="content__size-option" style={{ display: 'flex', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
+                                            {sanpham.size_type === 'managed' ? (
+                                                sizeInventory.map((sizeRecord, index) => {
+                                                    const isOutOfStock = sizeRecord.so_luong < 1;
+                                                    const isSelected = sizeRecord.size === selectedSize;
 
-                                    <div className="product-single__actions" style={{ marginTop: '24px' }}>
-                                        <div className="quantity">
-                                            <button className="btn-decrease" onClick={() => handleQuantityChange(-1)}>-</button>
-                                            <span>{quantity}</span>
-                                            <button className="btn-increase" onClick={() => handleQuantityChange(1)}>+</button>
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className={`btn-size ${isSelected ? 'active' : ''} ${isOutOfStock ? 'out-of-stock' : ''}`}
+                                                            onClick={() => !isOutOfStock && handleSizeChange(sizeRecord.size)}
+                                                            style={{
+                                                                minWidth: '50px',
+                                                                padding: '10px 16px',
+                                                                textAlign: 'center',
+                                                                border: isSelected ? '2px solid #2d4b73' : '1px solid #ddd',
+                                                                borderRadius: '4px',
+                                                                cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                                                                fontWeight: isSelected ? 'bold' : 'normal',
+                                                                backgroundColor: isOutOfStock ? '#f5f5f5' : (isSelected ? '#f0f4f8' : 'white'),
+                                                                opacity: isOutOfStock ? 0.5 : 1,
+                                                                transition: 'all 0.2s',
+                                                                position: 'relative'
+                                                            }}
+                                                        >
+                                                            {sizeRecord.size}
+                                                            {isOutOfStock && (
+                                                                <div style={{ fontSize: '10px', color: '#e74c3c', marginTop: '2px' }}>
+                                                                    Hết hàng
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                sanpham.size.map((size, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className={`btn-size ${size === selectedSize ? 'active' : ''}`}
+                                                        onClick={() => setSelectedSize(size)}
+                                                        style={{
+                                                            minWidth: '50px',
+                                                            padding: '10px 16px',
+                                                            textAlign: 'center',
+                                                            border: size === selectedSize ? '2px solid #2d4b73' : '1px solid #ddd',
+                                                            borderRadius: '4px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: size === selectedSize ? 'bold' : 'normal',
+                                                            backgroundColor: size === selectedSize ? '#f0f4f8' : 'white',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                    >
+                                                        {size}
+                                                    </div>
+                                                ))
+                                            )}
                                         </div>
-                                        <div className="btn btn-addCart" onClick={handleAddToCart}>
-                                            Thêm vào giỏ hàng
+
+                                        <div className="product-single__actions" style={{ marginTop: '24px' }}>
+                                            <div className="quantity">
+                                                <button className="btn-decrease" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}>-</button>
+                                                <span>{quantity}</span>
+                                                <button className="btn-increase" onClick={() => handleQuantityChange(1)} disabled={quantity >= maxQuantity}>+</button>
+                                            </div>
+                                            <div
+                                                className={`btn btn-addCart ${maxQuantity < 1 ? 'disabled' : ''}`}
+                                                onClick={maxQuantity > 0 ? handleAddToCart : null}
+                                                style={{ opacity: maxQuantity < 1 ? 0.5 : 1, cursor: maxQuantity < 1 ? 'not-allowed' : 'pointer' }}
+                                            >
+                                                {maxQuantity < 1 ? 'Hết hàng' : 'Thêm vào giỏ hàng'}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
                             {/* Product Description */}
                             {sanpham.mo_ta && (
@@ -353,7 +444,7 @@ export default function Details() {
                         />
 
                         {/* Review List */}
-                        <ReviewList productId={ma_san_pham} />
+                        <ReviewList productId={ma_san_pham} currentUser={user} />
                     </div>
                 </div>
             </main>

@@ -1,0 +1,124 @@
+/* SizeManager.css */
+.size-manager {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.size-manager__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.size-manager__header h4 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.size-manager__total {
+    font-size: 14px;
+    color: #666;
+}
+
+.size-manager__total strong {
+    color: #4e73df;
+    font-size: 18px;
+}
+
+.size-manager__quick-add {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.size-manager__quick-add label {
+    margin: 0;
+    font-weight: 500;
+    color: #666;
+}
+
+.btn-quick-size {
+    padding: 6px 12px;
+    border: 1px solid #4e73df;
+    background: white;
+    color: #4e73df;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-quick-size:hover:not(:disabled) {
+    background: #4e73df;
+    color: white;
+}
+
+.btn-quick-size:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #e9ecef;
+    color: #999;
+    border-color: #ddd;
+}
+
+.size-manager__add-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.size-manager__add-form input {
+    flex: 1;
+}
+
+.size-manager__add-form button {
+    white-space: nowrap;
+}
+
+.size-manager__table {
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.size-manager__table table {
+    margin: 0;
+}
+
+.size-manager__table th {
+    background: #4e73df;
+    color: white;
+    font-weight: 500;
+    text-align: center;
+}
+
+.size-manager__table td {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.size-manager__table input[type="number"] {
+    max-width: 100px;
+    margin: 0 auto;
+}
+
+.size-manager__empty {
+    text-align: center;
+    padding: 30px;
+    color: #999;
+    font-style: italic;
+    background: white;
+    border-radius: 4px;
+    border: 2px dashed #ddd;
+}
+
+.size-manager__empty p {
+    margin: 0;
+}

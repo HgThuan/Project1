@@ -7,6 +7,13 @@ export default function Indexkh() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    // Password reset modal state
+    const [showResetModal, setShowResetModal] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [resetting, setResetting] = useState(false);
+
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
@@ -59,6 +66,49 @@ export default function Indexkh() {
         }
     };
 
+    const handleResetPassword = async () => {
+        // Validation
+        if (!newPassword || newPassword.length < 6) {
+            toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            toast.error('Mật khẩu xác nhận không khớp');
+            return;
+        }
+
+        setResetting(true);
+        try {
+            const response = await axios.put(
+                `http://localhost:5001/api/users/reset-password/${selectedUser.id}`,
+                { newPassword },
+                getAuthHeaders()
+            );
+
+            if (response.data.success) {
+                toast.success('Đặt lại mật khẩu thành công!');
+                setShowResetModal(false);
+                setNewPassword('');
+                setConfirmPassword('');
+                setSelectedUser(null);
+            }
+        } catch (error) {
+            console.error('Error resetting password:', error);
+            const message = error.response?.data?.message || 'Lỗi khi đặt lại mật khẩu';
+            toast.error(message);
+        } finally {
+            setResetting(false);
+        }
+    };
+
+    const openResetModal = (user) => {
+        setSelectedUser(user);
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowResetModal(true);
+    };
+
     return (
         <div className="card shadow mb-4">
             <div className="d-flex align-items-center justify-content-between card-header py-3">
@@ -103,9 +153,16 @@ export default function Indexkh() {
                                         <td>
                                             <button
                                                 onClick={() => toggleLock(item.id, item.isActive)}
-                                                className={`btn btn-sm ${item.isActive ? 'btn-warning' : 'btn-success'}`}
+                                                className={`btn btn-sm ${item.isActive ? 'btn-warning' : 'btn-success'} me-2`}
                                             >
                                                 {item.isActive ? 'Khóa' : 'Mở khóa'}
+                                            </button>
+                                            <button
+                                                onClick={() => openResetModal(item)}
+                                                className="btn btn-sm btn-info"
+                                                title="Đặt lại mật khẩu"
+                                            >
+                                                Reset Password
                                             </button>
                                         </td>
                                     </tr>
@@ -115,6 +172,70 @@ export default function Indexkh() {
                     </table>
                 </div>
             </div>
+
+            {/* Password Reset Modal */}
+            {showResetModal && (
+                <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowResetModal(false)}>
+                    <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Đặt lại mật khẩu</h5>
+                                <button type="button" className="close" onClick={() => setShowResetModal(false)}>
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <p>
+                                    <strong>Khách hàng:</strong> {selectedUser?.ten_nguoi_dung}
+                                </p>
+                                <p>
+                                    <strong>Email:</strong> {selectedUser?.email}
+                                </p>
+                                <div className="form-group">
+                                    <label htmlFor="newPassword">Mật khẩu mới</label>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        id="newPassword"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="confirmPassword">Xác nhận mật khẩu</label>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        id="confirmPassword"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="Nhập lại mật khẩu mới"
+                                    />
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowResetModal(false)}
+                                    disabled={resetting}
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={handleResetPassword}
+                                    disabled={resetting}
+                                >
+                                    {resetting ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

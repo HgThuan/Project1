@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import SizeManager from '../../components/SizeManager';
 
 const initialState = {
   ten_san_pham: '',
@@ -12,7 +13,7 @@ const initialState = {
   ma_danh_muc: '',
   soluong: '',
   mo_ta: '',
-  so_luong_mua: '0', 
+  so_luong_mua: '0',
   giam_gia: '0',
   gioi_tinh: 'Unisex',
 };
@@ -20,6 +21,8 @@ const initialState = {
 export default function Createsp() {
   const [state, setState] = useState(initialState);
   const [file, setFile] = useState(null);
+  const [useManagedSizes, setUseManagedSizes] = useState(false);
+  const [sizeInventory, setSizeInventory] = useState([]);
 
   const { ten_san_pham, gia, size, mau_sac, anh_sanpham, ma_danh_muc, soluong, mo_ta, so_luong_mua, giam_gia, gioi_tinh } = state;
   const navigate = useNavigate();
@@ -36,33 +39,60 @@ export default function Createsp() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!ten_san_pham || !gia || !size || !mau_sac || !ma_danh_muc || !soluong || !mo_ta || !file) {
+    // Validation
+    if (!ten_san_pham || !gia || !mau_sac || !ma_danh_muc || !mo_ta || !file) {
       toast.error('Vui lòng nhập đầy đủ thông tin và chọn ảnh');
       return;
     }
 
-    const formData = new FormData();
-    formData.append('ten_san_pham', ten_san_pham);
-    formData.append('gia', gia);
-    formData.append('size', size);
-    formData.append('mau_sac', mau_sac);
-    formData.append('ma_danh_muc', ma_danh_muc);
-    formData.append('soluong', soluong);
-    formData.append('mo_ta', mo_ta);
-    formData.append('anh_sanpham', file);
-    formData.append('so_luong_mua', so_luong_mua); 
-    formData.append('giam_gia', giam_gia);
-    formData.append('gioi_tinh', gioi_tinh);
+    if (useManagedSizes) {
+      if (sizeInventory.length === 0) {
+        toast.error('Vui lòng thêm ít nhất một size');
+        return;
+      }
+    } else {
+      if (!size || !soluong) {
+        toast.error('Vui lòng nhập size và số lượng');
+        return;
+      }
+    }
 
     try {
-      await axios.post('http://localhost:5001/api/createsp', formData, {
+      // Step 1: Create product
+      const formData = new FormData();
+      formData.append('ten_san_pham', ten_san_pham);
+      formData.append('gia', gia);
+      formData.append('size', useManagedSizes ? '' : size);
+      formData.append('mau_sac', mau_sac);
+      formData.append('ma_danh_muc', ma_danh_muc);
+      formData.append('soluong', useManagedSizes ? '0' : soluong);
+      formData.append('mo_ta', mo_ta);
+      formData.append('anh_sanpham', file);
+      formData.append('so_luong_mua', so_luong_mua);
+      formData.append('giam_gia', giam_gia);
+      formData.append('gioi_tinh', gioi_tinh);
+
+      const productResponse = await axios.post('http://localhost:5001/api/createsp', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+
+      const createdProduct = productResponse.data.product;
+
+      // Step 2: If using managed sizes, create size records
+      if (useManagedSizes && createdProduct) {
+        await axios.post(`http://localhost:5001/api/product-sizes/${createdProduct.ma_san_pham}/batch`, {
+          sizes: sizeInventory
+        });
+      }
+
       toast.success('Thêm sản phẩm thành công!');
       setState(initialState);
       setFile(null);
+      setSizeInventory([]);
+      setUseManagedSizes(false);
       setTimeout(() => navigate('/Indexsp'), 500);
     } catch (err) {
+      console.error('Error creating product:', err);
       toast.error(err.response?.data?.message || 'Lỗi thêm sản phẩm');
     }
   };
@@ -98,24 +128,68 @@ export default function Createsp() {
           <div className="col">
             <input
               type="text"
-              name="size"
-              onChange={handleInputChange}
-              value={size}
-              className="form-control"
-              placeholder="Kích cỡ"
-            />
-          </div>
-          <div className="col">
-            <input
-              type="text"
               name="mau_sac"
               onChange={handleInputChange}
               value={mau_sac}
               className="form-control"
-              placeholder="Màu sắc"
+              placeholder="Màu sắc (ngăn cách bằng dấu phẩy)"
             />
           </div>
         </div>
+
+        {/* Size Management Toggle */}
+        {/* <div className="row mb-3">
+          <div className="col">
+            <div className="form-check">
+              <input
+                type="checkbox"
+                className="form-check-input"
+                id="useManagedSizes"
+                checked={useManagedSizes}
+                onChange={(e) => setUseManagedSizes(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="useManagedSizes">
+                Quản lý tồn kho theo từng size
+              </label>
+            </div>
+          </div>
+        </div> */}
+
+        {/* Conditional Size Input */}
+        {useManagedSizes ? (
+          <div className="row mb-3">
+            <div className="col">
+              <SizeManager
+                initialSizes={sizeInventory}
+                onChange={setSizeInventory}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="row mb-3">
+            <div className="col">
+              <input
+                type="text"
+                name="size"
+                onChange={handleInputChange}
+                value={size}
+                className="form-control"
+                placeholder="Kích cỡ (ngăn cách bằng dấu phẩy)"
+              />
+            </div>
+            <div className="col">
+              <input
+                type="text"
+                onChange={handleInputChange}
+                value={soluong}
+                name="soluong"
+                className="form-control"
+                placeholder="Số lượng"
+              />
+            </div>
+          </div>
+        )}
+
         <div className="row mb-3">
           <div className="col">
             <input
@@ -139,22 +213,13 @@ export default function Createsp() {
         </div>
         <div className="row mb-3">
           <div className="col">
-            <input
-              type="text"
-              onChange={handleInputChange}
-              value={soluong}
-              name="soluong"
-              className="form-control"
-              placeholder="Số lượng"
-            />
-          </div>
-          <div className="col">
             <textarea
               name="mo_ta"
               onChange={handleInputChange}
               value={mo_ta}
               className="form-control"
               placeholder="Mô tả"
+              rows="3"
             ></textarea>
           </div>
           <div className="col">
@@ -167,7 +232,8 @@ export default function Createsp() {
               placeholder="Số lượng đã bán"
             />
           </div>
-          <div className="row mb-3">
+        </div>
+        <div className="row mb-3">
           <div className="col">
             <label>Giảm giá (%)</label>
             <select
@@ -189,7 +255,7 @@ export default function Createsp() {
             <select
               name="gioi_tinh"
               onChange={handleInputChange}
-              value={gioi_tinh} // Giá trị được kiểm soát
+              value={gioi_tinh}
               className="form-control"
             >
               <option value="Unisex">Unisex (Nam/Nữ)</option>
@@ -197,7 +263,6 @@ export default function Createsp() {
               <option value="Nữ">Nữ</option>
             </select>
           </div>
-        </div>
         </div>
         <div className="row">
           <div className="d-grid">
