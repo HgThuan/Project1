@@ -34,6 +34,9 @@ const statsRoutes = require('./routes/statsRoutes');
 const staffRoutes = require('./routes/staffRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const userRoutes = require('./routes/userRoutes');
+const productSizeRoutes = require('./routes/productSizeRoutes');
+
 
 app.use(cors());
 app.use(express.json());
@@ -61,6 +64,9 @@ app.use(statsRoutes);
 app.use(staffRoutes);
 app.use(auditRoutes);
 app.use(profileRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/product-sizes', productSizeRoutes);
+
 
 
 app.listen(5001, () => {

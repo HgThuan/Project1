@@ -28,6 +28,11 @@ export default function OrderList() {
         orderDetails: []
     });
 
+    // Cancel reason state
+    const [showCancelModal, setShowCancelModal] = useState(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [customCancelReason, setCustomCancelReason] = useState('');
+
     useEffect(() => {
         fetchOrders();
     }, [page, status, startDate, endDate]);
@@ -76,13 +81,33 @@ export default function OrderList() {
     };
 
     const handleSoftDelete = async (ma_don_hang) => {
-        if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
+        setShowCancelModal(ma_don_hang);
+        setCancelReason('');
+        setCustomCancelReason('');
+    };
+
+    const confirmCancelOrder = async () => {
+        if (!showCancelModal) return;
+
+        const finalReason = cancelReason === 'custom' ? customCancelReason : cancelReason;
+
+        if (!finalReason || finalReason.trim() === '') {
+            toast.error('Vui lòng nhập lý do hủy đơn');
             return;
         }
 
         try {
-            await axios.delete(`http://localhost:5001/api/deleteOrder/${ma_don_hang}`);
+            const userData = JSON.parse(localStorage.getItem('user') || '{}');
+            await axios.delete(`http://localhost:5001/api/deleteOrder/${showCancelModal}`, {
+                data: {
+                    ly_do_huy: finalReason,
+                    nguoi_huy_id: userData.id || 'admin'
+                }
+            });
             fetchOrders();
+            setShowCancelModal(null);
+            setCancelReason('');
+            setCustomCancelReason('');
             toast.success('Đã hủy đơn hàng thành công!');
         } catch (error) {
             console.error('Error deleting order:', error);
@@ -354,6 +379,13 @@ export default function OrderList() {
                                     <p style={{ margin: '5px 0' }}><strong>SĐT:</strong> {selectedOrder.sdt}</p>
                                     <p style={{ margin: '5px 0' }}><strong>Địa chỉ:</strong> {selectedOrder.dia_chi}</p>
                                     <p style={{ margin: '5px 0' }}><strong>Ghi chú:</strong> {selectedOrder.ghi_chu || 'Không có'}</p>
+                                    {selectedOrder.trang_thai === 5 && selectedOrder.ly_do_huy && (
+                                        <p style={{ margin: '5px 0', color: '#dc3545' }}>
+                                            <strong>Lý do hủy:</strong> {selectedOrder.ly_do_huy}
+                                            <br />
+                                            <small style={{ color: '#666' }}>(Được hủy bởi: {selectedOrder.nguoi_huy === 'manager' ? 'Quản lý' : 'Khách hàng'})</small>
+                                        </p>
+                                    )}
                                 </div>
                                 <div style={{ backgroundColor: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
                                     <h4 style={{ marginTop: 0, marginBottom: '10px', color: '#2d4b73' }}>Thông tin thanh toán</h4>
@@ -510,6 +542,71 @@ export default function OrderList() {
                                 style={{ padding: '10px 20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                             >
                                 <i className="fa fa-print"></i> Lưu & In
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Reason Modal */}
+            {showCancelModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+                }} onClick={() => setShowCancelModal(null)}>
+                    <div style={{
+                        backgroundColor: 'white', width: '90%', maxWidth: '500px',
+                        borderRadius: '8px', boxShadow: '0 5px 15px rgba(0,0,0,0.3)', position: 'relative'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0 }}>Lý do hủy đơn hàng</h3>
+                            <button onClick={() => setShowCancelModal(null)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
+                        </div>
+
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Chọn lý do</label>
+                                <select
+                                    value={cancelReason}
+                                    onChange={(e) => setCancelReason(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                >
+                                    <option value="">-- Chọn lý do hủy --</option>
+                                    <option value="Khách hàng yêu cầu hủy">Khách hàng yêu cầu hủy</option>
+                                    <option value="Không liên lạc được khách hàng">Không liên lạc được khách hàng</option>
+                                    <option value="Sản phẩm hết hàng">Sản phẩm hết hàng</option>
+                                    <option value="Đơn hàng giả">Đơn hàng giả</option>
+                                    <option value="Đơn trùng lặp">Đơn trùng lặp</option>
+                                    <option value="custom">Khác (nhập lý do)</option>
+                                </select>
+                            </div>
+
+                            {cancelReason === 'custom' && (
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Nhập lý do cụ thể</label>
+                                    <textarea
+                                        value={customCancelReason}
+                                        onChange={(e) => setCustomCancelReason(e.target.value)}
+                                        rows="3"
+                                        placeholder="Nhập lý do hủy đơn..."
+                                        style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', resize: 'vertical' }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ padding: '20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button
+                                onClick={() => setShowCancelModal(null)}
+                                style={{ padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                onClick={confirmCancelOrder}
+                                style={{ padding: '10px 20px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            >
+                                <i className="fa fa-trash"></i> Xác nhận hủy
                             </button>
                         </div>
                     </div>

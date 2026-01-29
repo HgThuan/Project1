@@ -32,6 +32,11 @@ const SanPhamSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  size_type: {
+    type: String,
+    enum: ['simple', 'managed'],
+    default: 'simple'
+  },
   mo_ta: String,
   so_luong_mua: {
     type: Number,

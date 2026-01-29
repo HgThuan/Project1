@@ -53,9 +53,21 @@ const productController = {
 
   getProductById: async (req, res) => {
     try {
+      const ProductSize = require('../models/ProductSize');
       const product = await SanPham.findOne({ ma_san_pham: req.params.ma_san_pham });
       if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
-      res.json({ success: true, product });
+
+      // If product uses managed sizes, include size inventory
+      let sizeInventory = null;
+      if (product.size_type === 'managed') {
+        sizeInventory = await ProductSize.getProductSizes(req.params.ma_san_pham);
+      }
+
+      res.json({
+        success: true,
+        product,
+        sizeInventory: sizeInventory || []
+      });
     } catch (err) {
       res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
     }
@@ -94,8 +106,13 @@ const productController = {
 
   deleteProduct: async (req, res) => {
     try {
+      const ProductSize = require('../models/ProductSize');
       const deletedProduct = await SanPham.findOneAndDelete({ ma_san_pham: req.params.ma_san_pham });
       if (!deletedProduct) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
+
+      // Delete all associated size records
+      await ProductSize.deleteMany({ ma_san_pham: req.params.ma_san_pham });
+
       res.json({ success: true, message: 'Xóa sản phẩm thành công' });
     } catch (err) {
       res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
